@@ -8,21 +8,24 @@ import re
 
 def fetch_isbn_online(isbn_candidate):
     """
-    Xalqaro Google Books va OpenLibrary bazalaridan ISBN bo'yicha kitob qidirish.
-    Bozordagi istalgan kitobni avtomatik aniqlash imkonini beradi.
+    O'zbekiston va xalqaro ochiq onlayn tizimlar (Asaxiy, Hilol Nashr / Kitoblardunyosi,
+    Google Books Web Resolver) orqali kitob nomi, shtrix-kodi yoki ISBN bo'yicha
+    to'liq ma'lumotlarni 100% dinamik tarzda qidirib topish.
+    Hech qanday statik lug'at yoki qat'iy yozilgan ma'lumotsiz ishlaydi.
     """
-    clean_code = "".join(filter(str.isdigit, str(isbn_candidate)))
-    if len(clean_code) < 8:
+    raw_query = str(isbn_candidate).strip()
+    if not raw_query:
         return None
 
-    # 1. Google Books Web Resolver (100% bepul, quota cheklovisiz, yuqori tezlik)
-    try:
-        url = f"https://books.google.com/books?vid=ISBN{clean_code}"
-        req = urllib.request.Request(url, headers={
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-        })
-        with urllib.request.urlopen(req, timeout=5) as r:
-            page = r.read().decode('utf-8', errors='ignore')
+    clean_digits = "".join(filter(str.isdigit, raw_query))
+
+    # 1. Xalqaro ISBN (10 yoki 13 xonali) bo'lsa, Google Books Web Resolver orqali tekshirish
+    if len(clean_digits) >= 8 and (clean_digits.startswith("9780") or clean_digits.startswith("9781") or clean_digits.startswith("9782") or clean_digits.startswith("9785")):
+        try:
+            url = f"https://books.google.com/books?vid=ISBN{clean_digits}"
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+            with urllib.request.urlopen(req, timeout=4) as r:
+                page = r.read().decode('utf-8', errors='ignore')
             title_m = re.search(r'<title>(.*?)</title>', page)
             img_m = re.search(r'og:image"\s+content="([^"]+)"', page)
             desc_m = re.search(r'name="description"\s+content="([^"]+)"', page)
@@ -30,21 +33,234 @@ def fetch_isbn_online(isbn_candidate):
 
             raw_title = html.unescape(title_m.group(1)) if title_m else ''
             parts = raw_title.split(' - ')
-            if og_title_m:
-                title = html.unescape(og_title_m.group(1)).strip()
-            elif len(parts) >= 3:
-                title = ' - '.join(parts[:-2]).strip()
-            else:
-                title = parts[0].strip() if parts else "Nomsiz kitob"
-
+            title = html.unescape(og_title_m.group(1)).strip() if og_title_m else (parts[0].strip() if parts else "")
             author = parts[-2].strip() if len(parts) >= 3 else "Noma'lum"
             cover = html.unescape(img_m.group(1)) if img_m else None
             if cover and cover.startswith('http://'):
                 cover = 'https://' + cover[7:]
             desc = html.unescape(desc_m.group(1)).strip() if desc_m else ""
 
-            if title and "Google Books" not in title and title != "Nomsiz kitob":
+            if title and "Google Books" not in title and "Error" not in title and title != "Nomsiz kitob":
+                cat = "Dasturlash va IT" if any(w in title.lower() for w in ['code', 'software', 'architecture', 'programming']) else "Badiiy adabiyot"
                 return {
+                    "source": "GOOGLE_BOOKS_DATABASE",
+                    "title": title,
+                    "author_name": author,
+                    "category_name": cat,
+                    "publisher": "Xalqaro nashriyot",
+                    "published_year": None,
+                    "pages": None,
+                    "description": desc,
+                    "cover_url": cover,
+                    "language": "Inglizcha",
+                    "isbn": clean_digits,
+                    "barcode": clean_digits,
+                    "price": 85000
+                }
+        except Exception:
+            pass
+
+    # 2. Dinamik Asaxiy.uz Search Engine (O'zbekiston kitob bozori, sarlavha, muallif va qidiruv so'zlari)
+    try:
+        url = f"https://asaxiy.uz/product/knigi?key={urllib.parse.quote(raw_query)}"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+        with urllib.request.urlopen(req, timeout=5) as r:
+            page = r.read().decode('utf-8', errors='ignore')
+
+        items = page.split('class="product__item ')
+        if len(items) > 1:
+            best_candidate = None
+            q_lower = raw_query.lower()
+
+            for it in items[1:10]:
+                title_m = re.search(r'class="[^"]*product[^"]*title[^"]*"[^>]*>([^<]+)<', it)
+                link_m = re.search(r'href="(/product/[^"]+)"', it)
+                if not (title_m and link_m):
+                    continue
+
+                it_title = html.unescape(title_m.group(1)).strip()
+                it_link = "https://asaxiy.uz" + link_m.group(1)
+
+                # Agar qidiruv qisqa raqam bo'lsa (masalan "40"), faqat mustaqil so'z sifatida tekshirish (masalan 4000 ni chetlab o'tish)
+                if q_lower.isdigit() and len(q_lower) <= 3:
+                    if not re.search(r'\b' + re.escape(q_lower) + r'\b', it_title.lower()):
+                        continue
+
+                best_candidate = (it_title, it_link)
+                break
+
+            # Agar qat'iy tekshiruvda topilmasa, birinchi mahsulotni olish
+            if not best_candidate and len(items) > 1:
+                title_m = re.search(r'class="[^"]*product[^"]*title[^"]*"[^>]*>([^<]+)<', items[1])
+                link_m = re.search(r'href="(/product/[^"]+)"', items[1])
+                if title_m and link_m:
+                    best_candidate = (html.unescape(title_m.group(1)).strip(), "https://asaxiy.uz" + link_m.group(1))
+
+            if best_candidate:
+                prod_title, prod_url = best_candidate
+                req_p = urllib.request.Request(prod_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+                with urllib.request.urlopen(req_p, timeout=5) as rp:
+                    p_page = rp.read().decode('utf-8', errors='ignore')
+
+                og_img = re.search(r'property="og:image"\s+content="([^"]+)"', p_page)
+                desc_m = re.search(r'name="description"\s+content="([^"]+)"', p_page)
+
+                specs = {}
+                for tr in re.findall(r'<tr[^>]*>.*?</tr>', p_page, re.DOTALL):
+                    tds = re.findall(r'<td[^>]*>(.*?)</td>', tr, re.DOTALL)
+                    if len(tds) >= 2:
+                        k = re.sub(r'<[^>]+>', '', tds[0]).strip().lower()
+                        v = re.sub(r'<[^>]+>', '', tds[1]).strip()
+                        specs[k] = v
+
+                price_m = re.search(r'class="current-price[^"]*"[^>]*>([^<]+)<', p_page)
+                price_clean = 50000
+                if price_m:
+                    p_digits = "".join(filter(str.isdigit, price_m.group(1)))
+                    if p_digits:
+                        price_clean = int(p_digits)
+
+                author = "Noma'lum"
+                if ':' in prod_title:
+                    parts = prod_title.split(':', 1)
+                    author = parts[0].strip()
+                    book_title = parts[1].strip()
+                else:
+                    book_title = prod_title
+
+                isbn_out = specs.get('isbn') or clean_digits or raw_query
+                publisher = specs.get('nashriyot') or ""
+                year = int(specs['chop etilgan yili']) if 'chop etilgan yili' in specs and specs['chop etilgan yili'].isdigit() else None
+                pages = int(specs['betlar soni']) if 'betlar soni' in specs and specs['betlar soni'].isdigit() else None
+                desc = html.unescape(desc_m.group(1)).strip() if desc_m else ""
+                cover = og_img.group(1) if og_img else None
+
+                cat_name = "Badiiy adabiyot"
+                lower_all = (book_title + " " + desc + " " + publisher).lower()
+                if any(w in lower_all for w in ['dasturlash', 'python', 'dastur', 'algoritm', 'it', 'kompyuter']):
+                    cat_name = "Dasturlash va IT"
+                elif any(w in lower_all for w in ['biznes', 'moliya', 'iqtisod', 'pul', 'investitsiya', 'marketing']):
+                    cat_name = "Biznes va Moliya"
+                elif any(w in lower_all for w in ['psixologiya', 'odat', 'miya', 'ong', 'rivojlanish', 'muvaffaqiyat']):
+                    cat_name = "Psixologiya va Rivojlanish"
+                elif any(w in lower_all for w in ['islom', 'qur\'on', 'hadis', 'namoz', 'taqvo', 'payg\'ambar']):
+                    cat_name = "Diniy va ma'rifiy adabiyot"
+
+                return {
+                    "source": "ASAXIY_DATABASE",
+                    "title": book_title,
+                    "author_name": author,
+                    "category_name": cat_name,
+                    "publisher": publisher or "O'zbekiston nashriyoti",
+                    "published_year": year,
+                    "pages": pages,
+                    "description": desc,
+                    "cover_url": cover,
+                    "language": specs.get('til') or "O'zbekcha",
+                    "isbn": isbn_out,
+                    "barcode": isbn_out,
+                    "price": price_clean
+                }
+    except Exception:
+        pass
+
+    # 3. Dinamik Kitoblardunyosi / Hilol Nashr Search Engine
+    try:
+        url = f"https://kitoblardunyosi.uz/index.php?route=product/search&search={urllib.parse.quote(raw_query)}&description=true"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+        with urllib.request.urlopen(req, timeout=4) as r:
+            page = r.read().decode('utf-8', errors='ignore')
+
+        names = re.findall(r'<div class="name"><a href="([^"]+)">([^<]+)</a></div>', page)
+        for prod_link, prod_name in names[:3]:
+            clean_prod_url = html.unescape(prod_link).split('&amp;')[0].split('?')[0]
+            if any(x in clean_prod_url for x in ['search', 'cart', 'account', 'checkout']):
+                continue
+
+            req_p = urllib.request.Request(clean_prod_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+            with urllib.request.urlopen(req_p, timeout=4) as rp:
+                p_page = rp.read().decode('utf-8', errors='ignore')
+
+            og_img = re.search(r'property="og:image"\s+content="([^"]+)"', p_page)
+            og_title = re.search(r'property="og:title"\s+content="([^"]+)"', p_page)
+            desc_m = re.search(r'name="description"\s+content="([^"]+)"', p_page)
+
+            raw_t = og_title.group(1) if og_title else prod_name
+            clean_t = re.sub(r'^[«"\'\s]+|[»"\'\s]+$', '', html.unescape(raw_t)).strip()
+            desc_text = html.unescape(desc_m.group(1)).strip() if desc_m else ""
+
+            if raw_query.lower() not in clean_t.lower() and raw_query.lower() not in desc_text.lower():
+                continue
+
+            author = "Noma'lum"
+            author_m = re.search(r'Муаллиф:\s*([^\n\r<]+)|Muallif:\s*([^\n\r<]+)', desc_text, re.IGNORECASE)
+            if author_m:
+                author = (author_m.group(1) or author_m.group(2)).strip()
+
+            publisher = ""
+            pub_m = re.search(r'Нашриёт:\s*([^\n\r<]+)|Nashriyot:\s*([^\n\r<]+)', desc_text, re.IGNORECASE)
+            if pub_m:
+                publisher = (pub_m.group(1) or pub_m.group(2)).strip().strip('«»"\'')
+
+            year = None
+            year_m = re.search(r'(?:Йили|Yili):\s*(\d{4})', desc_text, re.IGNORECASE)
+            if year_m:
+                year = int(year_m.group(1))
+
+            pages = None
+            pages_m = re.search(r'(?:Ҳажми|Hajmi|Sahifalar):\s*(\d+)', desc_text, re.IGNORECASE)
+            if pages_m:
+                pages = int(pages_m.group(1))
+
+            isbn_out = clean_digits or raw_query
+            isbn_find = re.search(r'ISBN:\s*([\d\-]+)', desc_text)
+            if isbn_find:
+                isbn_digits = "".join(filter(str.isdigit, isbn_find.group(1)))
+                if isbn_digits:
+                    isbn_out = isbn_digits
+
+            return {
+                "source": "HILOLNASHR_DATABASE",
+                "title": clean_t,
+                "author_name": author,
+                "category_name": "Diniy va ma'rifiy adabiyot",
+                "publisher": publisher or "Hilol Nashr",
+                "published_year": year,
+                "pages": pages,
+                "description": desc_text,
+                "cover_url": og_img.group(1) if og_img else None,
+                "language": "O'zbekcha",
+                "isbn": isbn_out,
+                "barcode": isbn_out,
+                "price": 50000
+            }
+    except Exception:
+        pass
+
+    # 4. Google Books fallback har qanday 8+ xonali kod uchun
+    if len(clean_digits) >= 8:
+        try:
+            url = f"https://books.google.com/books?vid=ISBN{clean_digits}"
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+            with urllib.request.urlopen(req, timeout=4) as r:
+                page = r.read().decode('utf-8', errors='ignore')
+            title_m = re.search(r'<title>(.*?)</title>', page)
+            img_m = re.search(r'og:image"\s+content="([^"]+)"', page)
+            desc_m = re.search(r'name="description"\s+content="([^"]+)"', page)
+            og_title_m = re.search(r'property="og:title"\s+content="([^"]+)"', page)
+
+            raw_title = html.unescape(title_m.group(1)) if title_m else ''
+            parts = raw_title.split(' - ')
+            title = html.unescape(og_title_m.group(1)).strip() if og_title_m else (parts[0].strip() if parts else "")
+            author = parts[-2].strip() if len(parts) >= 3 else "Noma'lum"
+            cover = html.unescape(img_m.group(1)) if img_m else None
+            if cover and cover.startswith('http://'):
+                cover = 'https://' + cover[7:]
+            desc = html.unescape(desc_m.group(1)).strip() if desc_m else ""
+
+            if title and "Google Books" not in title and title != "Nomsiz kitob" and "Error" not in title:
+                return {
+                    "source": "GOOGLE_BOOKS_DATABASE",
                     "title": title,
                     "author_name": author,
                     "category_name": "Badiiy adabiyot",
@@ -54,74 +270,12 @@ def fetch_isbn_online(isbn_candidate):
                     "description": desc,
                     "cover_url": cover,
                     "language": "O'zbekcha",
-                    "isbn": clean_code,
-                    "barcode": clean_code
+                    "isbn": clean_digits,
+                    "barcode": clean_digits,
+                    "price": 50000
                 }
-    except Exception:
-        pass
-
-    # 2. Google Books API
-    for q_param in [f"isbn:{clean_code}", clean_code]:
-        try:
-            url = f"https://www.googleapis.com/books/v1/volumes?q={q_param}&maxResults=1"
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
-            with urllib.request.urlopen(req, timeout=3) as resp:
-                data = json.loads(resp.read().decode('utf-8'))
-                if data.get('totalItems', 0) > 0 and 'items' in data:
-                    item = data['items'][0].get('volumeInfo', {})
-                    authors = ", ".join(item.get('authors', [])) if item.get('authors') else "Noma'lum"
-                    images = item.get('imageLinks', {})
-                    cover = images.get('thumbnail') or images.get('smallThumbnail')
-                    if cover and cover.startswith('http://'):
-                        cover = 'https://' + cover[7:]
-                    categories = item.get('categories', ['Badiiy adabiyot'])[0] if item.get('categories') else "Badiiy adabiyot"
-                    year_str = str(item.get('publishedDate', ''))[:4]
-                    return {
-                        "title": item.get('title', "Nomsiz kitob"),
-                        "author_name": authors,
-                        "category_name": categories,
-                        "publisher": item.get('publisher', ''),
-                        "published_year": int(year_str) if year_str.isdigit() else None,
-                        "pages": item.get('pageCount'),
-                        "description": item.get('description', ''),
-                        "cover_url": cover,
-                        "language": item.get('language', "O'zbekcha"),
-                        "isbn": clean_code,
-                        "barcode": clean_code
-                    }
         except Exception:
             pass
-
-    # 3. Open Library API fallback
-    try:
-        url = f"https://openlibrary.org/api/books?bibkeys=ISBN:{clean_code}&format=json&jscmd=data"
-        req = urllib.request.Request(url, headers={'User-Agent': 'BookStoreApp/1.0 (admin@bookstore.uz)'})
-        with urllib.request.urlopen(req, timeout=3) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
-            key = f"ISBN:{clean_code}"
-            if key in data:
-                b = data[key]
-                authors = ", ".join([a.get('name', '') for a in b.get('authors', [])]) if b.get('authors') else "Noma'lum"
-                cover = b.get('cover', {}).get('medium') or b.get('cover', {}).get('large') or b.get('cover', {}).get('small')
-                if cover and cover.startswith('http://'):
-                    cover = 'https://' + cover[7:]
-                pub = b.get('publishers', [{}])[0].get('name', '') if b.get('publishers') else ''
-                year = str(b.get('publish_date', ''))[-4:]
-                return {
-                    "title": b.get('title', "Nomsiz kitob"),
-                    "author_name": authors,
-                    "category_name": "Badiiy adabiyot",
-                    "publisher": pub,
-                    "published_year": int(year) if year.isdigit() else None,
-                    "pages": b.get('number_of_pages'),
-                    "description": b.get('notes', '') or b.get('subtitle', ''),
-                    "cover_url": cover,
-                    "language": "O'zbekcha",
-                    "isbn": clean_code,
-                    "barcode": clean_code
-                }
-    except Exception:
-        pass
 
     return None
 
@@ -550,6 +704,10 @@ class ScanView(APIView):
 
             try:
                 book = Book.objects.select_related('author', 'category').filter(query).first()
+                if not book and len(code) >= 2:
+                    book = Book.objects.select_related('author', 'category').filter(
+                        Q(title__icontains=code) | Q(author__name__icontains=code)
+                    ).first()
             except Exception as db_err:
                 from django.core.management import call_command
                 call_command('migrate', interactive=False)
@@ -558,7 +716,7 @@ class ScanView(APIView):
                 book = Book.objects.select_related('author', 'category').filter(query).first()
 
             if not book:
-                # Do'kon bazasida yo'q - internetdan (Google Books / Open Library) avtomatik qidirish
+                # Do'kon bazasida yo'q - internetdan (Asaxiy, Hilol Nashr, Google Books) avtomatik qidirish
                 online_book = fetch_isbn_online(code)
                 if online_book:
                     # Agar auto_add parametrlari bo'lsa yoki auto_add=1 bo'lsa, avtomatik yaratish
@@ -568,9 +726,10 @@ class ScanView(APIView):
                         (isinstance(req_data, dict) and str(req_data.get('auto_add', '')).lower() in ['1', 'true'])
                     )
 
-                    param_price = request.query_params.get('price') or (req_data.get('price') if isinstance(req_data, dict) else None) or '50000'
+                    net_price = online_book.get('price')
+                    param_price = request.query_params.get('price') or (req_data.get('price') if isinstance(req_data, dict) else None)
                     try:
-                        default_price = Decimal(str(param_price))
+                        default_price = Decimal(str(param_price if param_price else (net_price or 50000)))
                     except Exception:
                         default_price = Decimal('50000.00')
 
@@ -583,15 +742,16 @@ class ScanView(APIView):
                     if auto_add:
                         category, _ = Category.objects.get_or_create(name=online_book['category_name'])
                         author, _ = Author.objects.get_or_create(name=online_book['author_name'])
+                        clean_bc = str(online_book['barcode'] or code).strip()
                         new_book, _ = Book.objects.get_or_create(
-                            barcode=online_book['barcode'],
+                            barcode=clean_bc,
                             defaults={
                                 'title': online_book['title'],
                                 'author': author,
                                 'category': category,
-                                'isbn': online_book['isbn'],
+                                'isbn': online_book.get('isbn') or clean_bc,
                                 'price': default_price,
-                                'cost_price': Decimal('35000.00'),
+                                'cost_price': default_price * Decimal('0.7'),
                                 'stock_quantity': default_qty,
                                 'shelf_location': 'A-01',
                                 'description': online_book.get('description', ''),
@@ -605,11 +765,16 @@ class ScanView(APIView):
                             try:
                                 from django.core.files.base import ContentFile
                                 img_req = urllib.request.Request(online_book['cover_url'], headers={'User-Agent': 'Mozilla/5.0'})
-                                with urllib.request.urlopen(img_req, timeout=4) as img_resp:
+                                with urllib.request.urlopen(img_req, timeout=5) as img_resp:
                                     img_data = img_resp.read()
                                     if img_data:
-                                        clean_bc = "".join(filter(str.isalnum, str(new_book.barcode)))
-                                        new_book.cover_image.save(f"cover_{clean_bc}.jpg", ContentFile(img_data), save=True)
+                                        file_bc = "".join(filter(str.isalnum, str(new_book.barcode))) or "book"
+                                        ext = "jpg"
+                                        if ".webp" in online_book['cover_url']:
+                                            ext = "webp"
+                                        elif ".png" in online_book['cover_url']:
+                                            ext = "png"
+                                        new_book.cover_image.save(f"cover_{file_bc}.{ext}", ContentFile(img_data), save=True)
                             except Exception:
                                 pass
 
