@@ -87,7 +87,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'scr.wsgi.application'
 
 # Database Configuration (PostgreSQL on Railway via DATABASE_URL, SQLite fallback for local dev)
-DATABASE_URL = os.environ.get('DATABASE_URL')
+DATABASE_URL = os.environ.get('DATABASE_URL') or os.environ.get('DATABASE_PUBLIC_URL')
 if DATABASE_URL:
     DATABASES = {
         'default': dj_database_url.config(

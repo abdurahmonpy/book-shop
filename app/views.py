@@ -470,7 +470,14 @@ class ScanView(APIView):
                 if key.isdigit():
                     query |= Q(id=int(key))
 
-            book = Book.objects.select_related('author', 'category').filter(query).first()
+            try:
+                book = Book.objects.select_related('author', 'category').filter(query).first()
+            except Exception as db_err:
+                from django.core.management import call_command
+                call_command('migrate', interactive=False)
+                from seed_data import run_seed
+                run_seed()
+                book = Book.objects.select_related('author', 'category').filter(query).first()
 
             if not book:
                 # Do'kon bazasida yo'q - xalqaro ISBN (Google Books / Open Library) orqali tekshirish
@@ -665,11 +672,39 @@ def web_app_view(request):
         books = list(Book.objects.filter(is_active=True).select_related('author', 'category').order_by('-created_at', '-id'))
     except Exception as e:
         import logging
-        logging.error(f"Database error in web_app_view: {e}")
-        categories, customers, books = [], [], []
+        logging.error(f"Database error in web_app_view: {e}. Running auto-migration...")
+        try:
+            from django.core.management import call_command
+            call_command('migrate', interactive=False)
+            from seed_data import run_seed
+            run_seed()
+            categories = list(Category.objects.all().order_by('name'))
+            customers = list(Customer.objects.all().order_by('first_name'))
+            books = list(Book.objects.filter(is_active=True).select_related('author', 'category').order_by('-created_at', '-id'))
+        except Exception as mig_err:
+            logging.error(f"Auto-migration error: {mig_err}")
+            categories, customers, books = [], [], []
 
     return render(request, 'index.html', {
         'categories': categories,
         'customers': customers,
         'books': books
     })
+
+
+def migrate_database_view(request):
+    """
+    Railway yoki masofaviy serverda bazani 1-klikda yangilash endpointi
+    """
+    from django.core.management import call_command
+    from django.http import JsonResponse
+    try:
+        call_command('migrate', interactive=False)
+        from seed_data import run_seed
+        run_seed()
+        return JsonResponse({
+            "status": "success",
+            "message": "Baza jadvallari (migrate) va boshlang'ich ma'lumotlar muvaffaqiyatli yuklandi!"
+        })
+    except Exception as e:
+        return JsonResponse({"status": "error", "detail": str(e)}, status=500)
