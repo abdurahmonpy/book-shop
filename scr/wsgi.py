@@ -8,6 +8,16 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'scr.settings')
 django.setup()
 
+# Staticfiles va Media papkalarini mavjudligini ta'minlash
+try:
+    from django.conf import settings
+    if hasattr(settings, 'STATIC_ROOT') and settings.STATIC_ROOT:
+        os.makedirs(settings.STATIC_ROOT, exist_ok=True)
+    if hasattr(settings, 'MEDIA_ROOT') and settings.MEDIA_ROOT:
+        os.makedirs(settings.MEDIA_ROOT, exist_ok=True)
+except Exception:
+    pass
+
 # PostgreSQL bazasini tekshirish va agar jadvallar bo'lmasa darhol migratsiya qilish
 try:
     from django.db import connection
