@@ -502,12 +502,13 @@ class DashboardStatsView(APIView):
 
 def web_app_view(request):
     """
-    Do'kon vitrinasi va sotuvchi kassa boshqaruv paneli
+    Do'kon vitrinasi va sotuvchi kassa boshqaruv paneli.
+    Do'kondagi barcha faol kitoblarni chiqaradi.
     """
     try:
-        categories = list(Category.objects.all())
-        customers = list(Customer.objects.all())
-        books = list(Book.objects.select_related('author', 'category').all()[:50])
+        categories = list(Category.objects.all().order_by('name'))
+        customers = list(Customer.objects.all().order_by('first_name'))
+        books = list(Book.objects.filter(is_active=True).select_related('author', 'category').order_by('-created_at', '-id'))
     except Exception as e:
         import logging
         logging.error(f"Database error in web_app_view: {e}")
