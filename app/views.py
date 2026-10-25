@@ -1,9 +1,12 @@
+import os
 import json
 import urllib.request
 from decimal import Decimal
 from urllib.parse import urlparse, parse_qs
 import html
 import re
+
+ISBNDB_API_KEY = os.environ.get("ISBNDB_API_KEY", "77209_365c94f173abadb402d9c38806e01f9b")
 
 
 # Bozor kitoblari va milliy ISBN registri (O'zbekiston nashriyotlari shtrix-kodlari)
@@ -156,6 +159,49 @@ def fetch_isbn_online(isbn_candidate):
         return UZBEK_MARKET_ISBNS[clean_digits].copy()
     if raw_query in UZBEK_MARKET_ISBNS:
         return UZBEK_MARKET_ISBNS[raw_query].copy()
+
+    # 2. ISBNdb API orqali qidirish (agar kalit kiritilgan va aktiv bo'lsa)
+    if ISBNDB_API_KEY and len(clean_digits) >= 8:
+        try:
+            url = f"https://api2.isbndb.com/book/{clean_digits}"
+            req = urllib.request.Request(url, headers={
+                'Authorization': ISBNDB_API_KEY,
+                'User-Agent': 'Mozilla/5.0'
+            })
+            with urllib.request.urlopen(req, timeout=4) as r:
+                data = json.loads(r.read().decode('utf-8'))
+                book_data = data.get('book', {})
+                if book_data and book_data.get('title'):
+                    authors = book_data.get('authors', [])
+                    author = ", ".join(authors) if isinstance(authors, list) else (book_data.get('author') or "Noma'lum")
+                    title = book_data.get('title', '').strip()
+                    desc = book_data.get('synopsis') or book_data.get('overview') or ''
+                    cover = book_data.get('image')
+                    pages = book_data.get('pages')
+                    pub_year = None
+                    dp = str(book_data.get('date_published') or '')
+                    m_year = re.search(r'\b(19\d\d|20\d\d)\b', dp)
+                    if m_year:
+                        pub_year = int(m_year.group(1))
+
+                    cat_name = "Dasturlash va IT" if any(w in title.lower() for w in ['code', 'programming', 'software', 'architecture']) else "Badiiy adabiyot"
+                    return {
+                        "source": "ISBNDB_DATABASE",
+                        "title": title,
+                        "author_name": author,
+                        "category_name": cat_name,
+                        "publisher": book_data.get('publisher') or "Nashriyot",
+                        "published_year": pub_year,
+                        "pages": int(pages) if pages and str(pages).isdigit() else None,
+                        "description": desc,
+                        "cover_url": cover,
+                        "language": book_data.get('language') or "O'zbekcha",
+                        "isbn": clean_digits,
+                        "barcode": clean_digits,
+                        "price": 70000
+                    }
+        except Exception:
+            pass
 
     # 1. Xalqaro ISBN (10 yoki 13 xonali) bo'lsa, Google Books Web Resolver orqali tekshirish
     if len(clean_digits) >= 8 and (clean_digits.startswith("9780") or clean_digits.startswith("9781") or clean_digits.startswith("9782") or clean_digits.startswith("9785")):
