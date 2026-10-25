@@ -638,14 +638,29 @@
 
             try {
                 const res = await fetch(`/api/scan/?code=${encodeURIComponent(code)}`);
-                const data = await res.json();
+                let data = null;
+                const contentType = res.headers.get("content-type");
 
-                if (!res.ok || !data.found) {
+                if (contentType && contentType.includes("application/json")) {
+                    data = await res.json();
+                } else {
+                    resCont.innerHTML = `
+                        <div class="p-6 text-center bg-rose-50 border border-rose-200 rounded-2xl text-rose-700">
+                            <i data-lucide="alert-circle" class="w-8 h-8 mx-auto mb-2 text-rose-500"></i>
+                            <h5 class="font-bold text-sm">Server javobi xato</h5>
+                            <p class="text-xs">Server kutilmagan javob qaytardi. Iltimos, qayta urinib ko'ring.</p>
+                        </div>
+                    `;
+                    lucide.createIcons();
+                    return;
+                }
+
+                if (!data || !data.found) {
                     resCont.innerHTML = `
                         <div class="p-6 text-center bg-rose-50 border border-rose-200 rounded-2xl text-rose-700">
                             <i data-lucide="alert-circle" class="w-8 h-8 mx-auto mb-2 text-rose-500"></i>
                             <h5 class="font-bold text-sm">Kitob topilmadi</h5>
-                            <p class="text-xs">${data.message || 'Bunday shtrix-kod yoki QR-kod bazada mavjud emas.'}</p>
+                            <p class="text-xs">${data ? (data.message || 'Bunday shtrix-kod yoki QR-kod bazada mavjud emas.') : 'Kitob topilmadi'}</p>
                         </div>
                     `;
                     lucide.createIcons();
@@ -654,7 +669,7 @@
 
                 renderPosScannedCard(data);
             } catch (err) {
-                resCont.innerHTML = `<div class="p-4 bg-rose-50 text-rose-700 rounded-xl text-xs">Xatolik: ${err.message}</div>`;
+                resCont.innerHTML = `<div class="p-4 bg-rose-50 text-rose-700 rounded-xl text-xs">Xatolik: Qayta urinib ko'ring yoki kodni tekshiring.</div>`;
             }
         }
 

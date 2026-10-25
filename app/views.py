@@ -435,130 +435,140 @@ class ScanView(APIView):
         return self._process_code(code, request)
 
     def _process_code(self, raw_code, request):
-        code = raw_code.strip()
-        search_keys = [code]
+        try:
+            code = raw_code.strip()
+            search_keys = [code]
 
-        # 1. Agar kod JSON formatida bo'lsa (bizning QR-kodimiz JSON saqlaydi)
-        if (code.startswith('{') and code.endswith('}')) or (code.startswith('%7B') and code.endswith('%7D')):
-            try:
-                data = json.loads(code)
-                if isinstance(data, dict):
-                    if 'barcode' in data and data['barcode']:
-                        search_keys.append(str(data['barcode']).strip())
-                    if 'isbn' in data and data['isbn']:
-                        search_keys.append(str(data['isbn']).strip())
-                    if 'id' in data and data['id']:
-                        search_keys.append(str(data['id']).strip())
-                    if 'book_id' in data and data['book_id']:
-                        search_keys.append(str(data['book_id']).strip())
-            except Exception:
-                pass
+            # 1. Agar kod JSON formatida bo'lsa (bizning QR-kodimiz JSON saqlaydi)
+            if (code.startswith('{') and code.endswith('}')) or (code.startswith('%7B') and code.endswith('%7D')):
+                try:
+                    data = json.loads(code)
+                    if isinstance(data, dict):
+                        if 'barcode' in data and data['barcode']:
+                            search_keys.append(str(data['barcode']).strip())
+                        if 'isbn' in data and data['isbn']:
+                            search_keys.append(str(data['isbn']).strip())
+                        if 'id' in data and data['id']:
+                            search_keys.append(str(data['id']).strip())
+                        if 'book_id' in data and data['book_id']:
+                            search_keys.append(str(data['book_id']).strip())
+                except Exception:
+                    pass
 
-        # 2. Agar kod URL bo'lsa (masalan https://.../scan/?code=978...)
-        if code.startswith('http://') or code.startswith('https://'):
-            parsed = urlparse(code)
-            qs = parse_qs(parsed.query)
-            if 'code' in qs and qs['code']:
-                search_keys.append(qs['code'][0].strip())
+            # 2. Agar kod URL bo'lsa (masalan https://.../scan/?code=978...)
+            if code.startswith('http://') or code.startswith('https://'):
+                parsed = urlparse(code)
+                qs = parse_qs(parsed.query)
+                if 'code' in qs and qs['code']:
+                    search_keys.append(qs['code'][0].strip())
 
-        # Kitobni qidirish
-        query = Q()
-        for key in search_keys:
-            query |= Q(barcode__iexact=key)
-            query |= Q(isbn__iexact=key)
-            if key.isdigit():
-                query |= Q(id=int(key))
+            # Kitobni qidirish
+            query = Q()
+            for key in search_keys:
+                query |= Q(barcode__iexact=key)
+                query |= Q(isbn__iexact=key)
+                if key.isdigit():
+                    query |= Q(id=int(key))
 
-        book = Book.objects.select_related('author', 'category').filter(query).first()
+            book = Book.objects.select_related('author', 'category').filter(query).first()
 
-        if not book:
-            # Do'kon bazasida yo'q - xalqaro ISBN (Google Books / Open Library) orqali tekshirish
-            online_book = fetch_isbn_online(code)
-            if online_book:
+            if not book:
+                # Do'kon bazasida yo'q - xalqaro ISBN (Google Books / Open Library) orqali tekshirish
+                online_book = fetch_isbn_online(code)
+                if online_book:
+                    return Response({
+                        "found": True,
+                        "source": "GLOBAL_ISBN_DATABASE",
+                        "scanned_code": raw_code,
+                        "matched_by": "ONLINE_ISBN",
+                        "is_in_local_store": False,
+                        "online_book": online_book,
+                        "message": f"'{online_book['title']}' kitobi xalqaro ISBN bazasidan topildi! Ushbu kitob do'kon omboriga hali kiritilmagan. Uni 1-klikda do'konga qo'shishingiz mumkin.",
+                        "quick_add_payload": {
+                            "title": online_book['title'],
+                            "author_name": online_book['author_name'],
+                            "category_name": online_book['category_name'],
+                            "barcode": online_book['barcode'],
+                            "isbn": online_book['isbn'],
+                            "description": online_book.get('description', ''),
+                            "published_year": online_book.get('published_year'),
+                            "price": 50000,
+                            "stock_quantity": 5
+                        }
+                    }, status=status.HTTP_200_OK)
+
                 return Response({
-                    "found": True,
-                    "source": "GLOBAL_ISBN_DATABASE",
+                    "found": False,
                     "scanned_code": raw_code,
-                    "matched_by": "ONLINE_ISBN",
-                    "is_in_local_store": False,
-                    "online_book": online_book,
-                    "message": f"'{online_book['title']}' kitobi xalqaro ISBN bazasidan topildi! Ushbu kitob do'kon omboriga hali kiritilmagan. Uni 1-klikda do'konga qo'shishingiz mumkin.",
-                    "quick_add_payload": {
-                        "title": online_book['title'],
-                        "author_name": online_book['author_name'],
-                        "category_name": online_book['category_name'],
-                        "barcode": online_book['barcode'],
-                        "isbn": online_book['isbn'],
-                        "description": online_book.get('description', ''),
-                        "published_year": online_book.get('published_year'),
-                        "price": 50000,
-                        "stock_quantity": 5
-                    }
-                }, status=status.HTTP_200_OK)
+                    "message": f"'{raw_code}' kodi bo'yicha do'kon bazasida kitob topilmadi.",
+                    "hint": "Ushbu kitobni yangi kitob sifatida do'koningizga kiritishingiz mumkin.",
+                    "allow_quick_create": True,
+                    "barcode": code
+                }, status=status.HTTP_404_NOT_FOUND)
 
+            # Kitob topildi! To'liq ma'lumotlarni yig'amiz
+            detail_data = BookDetailSerializer(book, context={'request': request}).data
+
+            # Ombordagi holat
+            if book.stock_quantity > 5:
+                stock_badge = "AVAILABLE"
+                stock_message = f"Omborda yetarli: {book.stock_quantity} dona mavjud"
+            elif book.stock_quantity > 0:
+                stock_badge = "LOW_STOCK"
+                stock_message = f"Diqqat! Qoldiq kam: {book.stock_quantity} dona qoldi"
+            else:
+                stock_badge = "OUT_OF_STOCK"
+                stock_message = "Tugagan! Omborda qolmagan (0 dona)"
+
+            # Sotuvlar statistikasi
+            total_sold = SaleItem.objects.filter(book=book, sale__status='COMPLETED').aggregate(
+                qty=Sum('quantity'), total=Sum('total_price')
+            )
+            total_sold_count = total_sold['qty'] or 0
+            total_sold_amount = total_sold['total'] or Decimal('0.00')
+
+            # Hozirda qarzga olinganlar
+            active_debts_count = DebtItem.objects.filter(
+                book=book,
+                debt__status__in=['PENDING', 'PARTIAL', 'OVERDUE'],
+                is_returned=False
+            ).count()
+
+            return Response({
+                "found": True,
+                "scanned_code": raw_code,
+                "matched_by": "BARCODE" if book.barcode == code else "QR/ISBN",
+                "book": detail_data,
+                "stock_status": {
+                    "in_stock": book.is_in_stock,
+                    "quantity": book.stock_quantity,
+                    "badge": stock_badge,
+                    "message": stock_message,
+                    "shelf_location": book.shelf_location or "Belgilanmagan"
+                },
+                "analytics": {
+                    "total_sold_count": total_sold_count,
+                    "total_sold_amount": total_sold_amount,
+                    "active_borrowed_count": active_debts_count
+                },
+                "quick_sale_payload": {
+                    "payment_method": "CASH",
+                    "items": [{"book_id": book.id, "quantity": 1, "unit_price": float(book.price)}]
+                },
+                "quick_debt_payload": {
+                    "borrow_type": "PURCHASE_DEBT",
+                    "items": [{"book_id": book.id, "quantity": 1, "unit_price": float(book.price)}]
+                }
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            import logging
+            logging.error(f"Error in ScanView: {e}", exc_info=True)
             return Response({
                 "found": False,
                 "scanned_code": raw_code,
-                "message": f"'{raw_code}' kodi bo'yicha do'kon bazasida kitob topilmadi.",
-                "hint": "Ushbu kitobni yangi kitob sifatida do'koningizga kiritishingiz mumkin.",
-                "allow_quick_create": True,
-                "barcode": code
-            }, status=status.HTTP_404_NOT_FOUND)
-
-        # Kitob topildi! To'liq ma'lumotlarni yig'amiz
-        detail_data = BookDetailSerializer(book, context={'request': request}).data
-
-        # Ombordagi holat
-        if book.stock_quantity > 5:
-            stock_badge = "AVAILABLE"
-            stock_message = f"Omborda yetarli: {book.stock_quantity} dona mavjud"
-        elif book.stock_quantity > 0:
-            stock_badge = "LOW_STOCK"
-            stock_message = f"Diqqat! Qoldiq kam: {book.stock_quantity} dona qoldi"
-        else:
-            stock_badge = "OUT_OF_STOCK"
-            stock_message = "Tugagan! Omborda qolmagan (0 dona)"
-
-        # Sotuvlar statistikasi
-        total_sold = SaleItem.objects.filter(book=book, sale__status='COMPLETED').aggregate(
-            qty=Sum('quantity'), total=Sum('total_price')
-        )
-        total_sold_count = total_sold['qty'] or 0
-        total_sold_amount = total_sold['total'] or Decimal('0.00')
-
-        # Hozirda qarzga olinganlar
-        active_debts_count = DebtItem.objects.filter(
-            book=book,
-            debt__status__in=['PENDING', 'PARTIAL', 'OVERDUE'],
-            is_returned=False
-        ).count()
-
-        return Response({
-            "found": True,
-            "scanned_code": raw_code,
-            "matched_by": "BARCODE" if book.barcode == code else "QR/ISBN",
-            "book": detail_data,
-            "stock_status": {
-                "in_stock": book.is_in_stock,
-                "quantity": book.stock_quantity,
-                "badge": stock_badge,
-                "message": stock_message,
-                "shelf_location": book.shelf_location or "Belgilanmagan"
-            },
-            "analytics": {
-                "total_sold_count": total_sold_count,
-                "total_sold_amount": total_sold_amount,
-                "active_borrowed_count": active_debts_count
-            },
-            "quick_sale_payload": {
-                "payment_method": "CASH",
-                "items": [{"book_id": book.id, "quantity": 1, "unit_price": float(book.price)}]
-            },
-            "quick_debt_payload": {
-                "borrow_type": "PURCHASE_DEBT",
-                "items": [{"book_id": book.id, "quantity": 1, "unit_price": float(book.price)}]
-            }
-        }, status=status.HTTP_200_OK)
+                "message": f"Skanerlashda xatolik yuz berdi: {str(e)}",
+                "hint": "Qayta urinib ko'ring yoki shtrix-kod to'g'riligini tekshiring."
+            }, status=status.HTTP_200_OK)
 
 
 class DashboardStatsView(APIView):
