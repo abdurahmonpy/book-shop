@@ -659,9 +659,67 @@
         }
 
         function renderPosScannedCard(data) {
+            const cont = document.getElementById('pos-scan-result');
+
+            // 1. Agar xalqaro ISBN bazasidan topilgan yangi kitob bo'lsa
+            if (data.source === 'GLOBAL_ISBN_DATABASE') {
+                const ob = data.online_book;
+                cont.innerHTML = `
+                    <div class="bg-gradient-to-r from-indigo-50 to-amber-50 p-6 rounded-2xl border-2 border-indigo-200 shadow-md space-y-4">
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-600 text-white flex items-center gap-1">
+                                <i data-lucide="globe" class="w-3.5 h-3.5"></i> Xalqaro ISBN Bazasidan Topildi
+                            </span>
+                            <span class="text-xs text-slate-500 font-mono">ISBN: ${ob.isbn}</span>
+                        </div>
+
+                        <div class="flex flex-col md:flex-row gap-4 items-start">
+                            <div class="w-24 h-32 bg-slate-200 rounded-xl overflow-hidden shrink-0 shadow">
+                                ${ob.cover_url ? `<img src="${ob.cover_url}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-slate-400"><i data-lucide="book" class="w-8 h-8"></i></div>`}
+                            </div>
+                            <div class="flex-1 space-y-1">
+                                <h4 class="font-bold text-lg text-slate-900">${ob.title}</h4>
+                                <p class="text-xs text-indigo-700 font-semibold">Muallif: ${ob.author_name} • Nashriyot: ${ob.publisher || '-'}</p>
+                                <p class="text-[11px] text-slate-500 line-clamp-2">${ob.description || 'Xalqaro tavsif mavjud emas'}</p>
+                                <div class="text-[11px] text-slate-600 font-medium pt-1">
+                                    💡 <em>Ushbu kitob bozorda sotiladigan yangi kitob! Do'koningizga narx va sonini belgilab 1-klikda qo'shishingiz mumkin:</em>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Add Form -->
+                        <form onsubmit="submitQuickAddBook(event)" class="bg-white p-4 rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                            <input type="hidden" id="qa-title" value="${ob.title.replace(/"/g, '&quot;')}">
+                            <input type="hidden" id="qa-author" value="${ob.author_name.replace(/"/g, '&quot;')}">
+                            <input type="hidden" id="qa-barcode" value="${ob.barcode}">
+                            <input type="hidden" id="qa-category" value="${ob.category_name}">
+                            <input type="hidden" id="qa-year" value="${ob.published_year || ''}">
+                            <input type="hidden" id="qa-desc" value="${(ob.description || '').replace(/"/g, '&quot;')}">
+
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Sotish narxi (so'm) *</label>
+                                <input type="number" id="qa-price" value="50000" min="1000" step="500" required class="w-full px-3 py-2 border rounded-xl text-xs font-bold text-slate-900">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Omborga necha dona? *</label>
+                                <input type="number" id="qa-quantity" value="10" min="1" required class="w-full px-3 py-2 border rounded-xl text-xs font-bold text-slate-900">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Polkadagi o'rni</label>
+                                <input type="text" id="qa-shelf" value="A-01" class="w-full px-3 py-2 border rounded-xl text-xs text-slate-900">
+                            </div>
+                            <button type="submit" class="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow flex items-center justify-center gap-1.5 transition">
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i> Omborga qo'shish
+                            </button>
+                        </form>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
             const b = data.book;
             const stock = data.stock_status;
-            const cont = document.getElementById('pos-scan-result');
 
             let borrowersHtml = '';
             if (b.active_borrowers && b.active_borrowers.length > 0) {
@@ -754,6 +812,43 @@
                 }).catch(() => {});
             }
             document.getElementById('pos-camera-wrapper').classList.add('hidden');
+        }
+
+        async function submitQuickAddBook(e) {
+            e.preventDefault();
+            const payload = {
+                title: document.getElementById('qa-title').value,
+                author_name: document.getElementById('qa-author').value,
+                category_name: document.getElementById('qa-category').value,
+                barcode: document.getElementById('qa-barcode').value,
+                isbn: document.getElementById('qa-barcode').value,
+                published_year: document.getElementById('qa-year').value ? Number(document.getElementById('qa-year').value) : null,
+                description: document.getElementById('qa-desc').value,
+                price: Number(document.getElementById('qa-price').value),
+                stock_quantity: Number(document.getElementById('qa-quantity').value),
+                shelf_location: document.getElementById('qa-shelf').value
+            };
+
+            try {
+                const res = await fetch('/api/books/quick-add/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Kitob do\'kon omboriga qo\'shildi!',
+                        text: `"${payload.title}" kitobi muvaffaqiyatli saqlandi. Endi uni sotishingiz yoki qarzga berishingiz mumkin.`
+                    });
+                    handlePosScan(null);
+                } else {
+                    Swal.fire('Xatolik', data.error || JSON.stringify(data), 'error');
+                }
+            } catch (err) {
+                Swal.fire('Tarmoq xatosi', err.message, 'error');
+            }
         }
 
         // BOOK DETAIL MODAL

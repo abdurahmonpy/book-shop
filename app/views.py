@@ -1,6 +1,77 @@
 import json
+import urllib.request
 from decimal import Decimal
 from urllib.parse import urlparse, parse_qs
+
+
+def fetch_isbn_online(isbn_candidate):
+    """
+    Xalqaro Google Books va OpenLibrary bazalaridan ISBN bo'yicha kitob qidirish.
+    Bozordagi istalgan kitobni avtomatik aniqlash imkonini beradi.
+    """
+    clean_code = "".join(filter(str.isdigit, str(isbn_candidate)))
+    if len(clean_code) not in [10, 13]:
+        return None
+
+    # 1. Google Books API
+    try:
+        url = f"https://www.googleapis.com/books/v1/volumes?q=isbn:{clean_code}"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            if data.get('totalItems', 0) > 0:
+                item = data['items'][0]['volumeInfo']
+                authors = ", ".join(item.get('authors', [])) if item.get('authors') else "Noma'lum"
+                images = item.get('imageLinks', {})
+                cover = images.get('thumbnail') or images.get('smallThumbnail')
+                categories = item.get('categories', ['Badiiy adabiyot'])[0] if item.get('categories') else "Badiiy adabiyot"
+                year_str = item.get('publishedDate', '')[:4]
+                return {
+                    "title": item.get('title', "Nomsiz kitob"),
+                    "author_name": authors,
+                    "category_name": categories,
+                    "publisher": item.get('publisher', ''),
+                    "published_year": int(year_str) if year_str.isdigit() else None,
+                    "pages": item.get('pageCount'),
+                    "description": item.get('description', ''),
+                    "cover_url": cover,
+                    "language": item.get('language', "O'zbekcha"),
+                    "isbn": clean_code,
+                    "barcode": clean_code
+                }
+    except Exception:
+        pass
+
+    # 2. Open Library API fallback
+    try:
+        url = f"https://openlibrary.org/api/books?bibkeys=ISBN:{clean_code}&format=json&jscmd=data"
+        req = urllib.request.Request(url, headers={'User-Agent': 'BookStoreApp/1.0'})
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            key = f"ISBN:{clean_code}"
+            if key in data:
+                b = data[key]
+                authors = ", ".join([a.get('name', '') for a in b.get('authors', [])]) if b.get('authors') else "Noma'lum"
+                cover = b.get('cover', {}).get('medium') or b.get('cover', {}).get('large')
+                pub = b.get('publishers', [{}])[0].get('name', '') if b.get('publishers') else ''
+                year = b.get('publish_date', '')[-4:]
+                return {
+                    "title": b.get('title', "Nomsiz kitob"),
+                    "author_name": authors,
+                    "category_name": "Umumiy adabiyot",
+                    "publisher": pub,
+                    "published_year": int(year) if year.isdigit() else None,
+                    "pages": b.get('number_of_pages'),
+                    "description": b.get('notes', ''),
+                    "cover_url": cover,
+                    "language": "O'zbekcha",
+                    "isbn": clean_code,
+                    "barcode": clean_code
+                }
+    except Exception:
+        pass
+
+    return None
 
 from django.db import transaction
 from django.db.models import Sum, Count, F, Q
@@ -87,6 +158,53 @@ class BookViewSet(viewsets.ModelViewSet):
             "message": "Shtrix-kod va QR-kod tasvirlari muvaffaqiyatli yangilandi.",
             "book": serializer.data
         })
+
+    @extend_schema(
+        summary="Yangi kitobni tezkor qo'shish (Skanerdan so'ng)",
+        description="Skaner qilingan yangi kitobni do'konga qo'shish (avtomatik kategoriya va muallif biriktiradi)."
+    )
+    @action(detail=False, methods=['post'], url_path='quick-add')
+    def quick_add(self, request):
+        title = request.data.get('title')
+        barcode = request.data.get('barcode')
+        price = request.data.get('price', 50000)
+        stock_quantity = request.data.get('stock_quantity', 1)
+        author_name = request.data.get('author_name', "Noma'lum")
+        category_name = request.data.get('category_name', "Umumiy")
+        shelf_location = request.data.get('shelf_location', 'A-01')
+        description = request.data.get('description', '')
+        published_year = request.data.get('published_year')
+
+        if not title or not barcode:
+            return Response({"error": "Kitob nomi va shtrix-kodi kiritilishi shart."}, status=status.HTTP_400_BAD_REQUEST)
+
+        category, _ = Category.objects.get_or_create(name=category_name)
+        author, _ = Author.objects.get_or_create(name=author_name)
+
+        book, created = Book.objects.get_or_create(
+            barcode=barcode,
+            defaults={
+                'title': title,
+                'author': author,
+                'category': category,
+                'price': Decimal(str(price)),
+                'stock_quantity': int(stock_quantity),
+                'shelf_location': shelf_location,
+                'description': description,
+                'published_year': published_year if published_year else None,
+                'isbn': barcode
+            }
+        )
+        if not created:
+            book.stock_quantity += int(stock_quantity)
+            book.price = Decimal(str(price))
+            book.save()
+
+        serializer = BookDetailSerializer(book, context={'request': request})
+        return Response({
+            "message": f"'{book.title}' kitobi muvaffaqiyatli do'kon omboriga qo'shildi!",
+            "book": serializer.data
+        }, status=status.HTTP_201_CREATED)
 
 
 class CustomerViewSet(viewsets.ModelViewSet):
@@ -354,11 +472,37 @@ class ScanView(APIView):
         book = Book.objects.select_related('author', 'category').filter(query).first()
 
         if not book:
+            # Do'kon bazasida yo'q - xalqaro ISBN (Google Books / Open Library) orqali tekshirish
+            online_book = fetch_isbn_online(code)
+            if online_book:
+                return Response({
+                    "found": True,
+                    "source": "GLOBAL_ISBN_DATABASE",
+                    "scanned_code": raw_code,
+                    "matched_by": "ONLINE_ISBN",
+                    "is_in_local_store": False,
+                    "online_book": online_book,
+                    "message": f"'{online_book['title']}' kitobi xalqaro ISBN bazasidan topildi! Ushbu kitob do'kon omboriga hali kiritilmagan. Uni 1-klikda do'konga qo'shishingiz mumkin.",
+                    "quick_add_payload": {
+                        "title": online_book['title'],
+                        "author_name": online_book['author_name'],
+                        "category_name": online_book['category_name'],
+                        "barcode": online_book['barcode'],
+                        "isbn": online_book['isbn'],
+                        "description": online_book.get('description', ''),
+                        "published_year": online_book.get('published_year'),
+                        "price": 50000,
+                        "stock_quantity": 5
+                    }
+                }, status=status.HTTP_200_OK)
+
             return Response({
                 "found": False,
                 "scanned_code": raw_code,
-                "message": f"'{raw_code}' kodi bo'yicha hech qanday kitob topilmadi.",
-                "hint": "Shtrix-kod yoki QR-kod to'g'riligini tekshiring yoki kitobni tizimga qo'shing."
+                "message": f"'{raw_code}' kodi bo'yicha do'kon bazasida kitob topilmadi.",
+                "hint": "Ushbu kitobni yangi kitob sifatida do'koningizga kiritishingiz mumkin.",
+                "allow_quick_create": True,
+                "barcode": code
             }, status=status.HTTP_404_NOT_FOUND)
 
         # Kitob topildi! To'liq ma'lumotlarni yig'amiz
