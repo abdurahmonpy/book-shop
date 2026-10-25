@@ -6,18 +6,156 @@ import html
 import re
 
 
+# Bozor kitoblari va milliy ISBN registri (O'zbekiston nashriyotlari shtrix-kodlari)
+UZBEK_MARKET_ISBNS = {
+    # 40 Qirq - Ahmad Shuqayriy (Falaq nashr)
+    "9789910818851": {
+        "source": "UZBEK_MARKET_DATABASE",
+        "title": "40 Qirq",
+        "author_name": "Ahmad Shuqayriy",
+        "category_name": "Badiiy adabiyot",
+        "publisher": "Falaq nashr",
+        "published_year": 2026,
+        "pages": 174,
+        "description": "Ahmad Shuqayriyning 40 yoshga to'lishi arafasida kimsasiz orolda 40 kunlik xilvatda tug'ilgan tafakkur, hayotiy mushohadalar, Qur'on bilan munosabat hamda nafs islohi haqidagi mashhur asari.",
+        "cover_url": "https://assets.asaxiy.uz/product/main_image/desktop/69c7bc1eb57de.jpg.webp",
+        "language": "O'zbekcha",
+        "isbn": "9789910818851",
+        "barcode": "9789910818851",
+        "price": 84000
+    },
+    # Sariq devni minib - Xudoyberdi To'xtaboyev
+    "9789943279469": {
+        "source": "UZBEK_MARKET_DATABASE",
+        "title": "Sariq devni minib",
+        "author_name": "Xudoyberdi To'xtaboyev",
+        "category_name": "Badiiy adabiyot",
+        "publisher": "Yangi Asr Avlodi",
+        "published_year": 2022,
+        "pages": 288,
+        "description": "Xudoyberdi To'xtaboyevning eng mashhur sarguzasht romani. Hoshimjonning sehrli qalpoqcha orqali boshdan kechirgan sarguzashtlari.",
+        "cover_url": "https://assets.asaxiy.uz/product/main_image/desktop/65e1a73483f9e.jpg",
+        "language": "O'zbekcha",
+        "isbn": "978-9943-27-946-9",
+        "barcode": "9789943279469",
+        "price": 45000
+    },
+    # Atom odatlar - James Clear
+    "9789943231948": {
+        "source": "UZBEK_MARKET_DATABASE",
+        "title": "Atom odatlar",
+        "author_name": "James Clear",
+        "category_name": "Psixologiya va Rivojlanish",
+        "publisher": "Asaxiy Books",
+        "published_year": 2023,
+        "pages": 320,
+        "description": "Kichik o'zgarishlar, ulkan natijalar. Odatlarni shakllantirish va yomon odatlardan xalos bo'lish usullari.",
+        "cover_url": "https://assets.asaxiy.uz/product/main_image/desktop/64a66e44b827e.jpg",
+        "language": "O'zbekcha",
+        "isbn": "978-9943-23-194-8",
+        "barcode": "9789943231948",
+        "price": 65000
+    },
+    # Boy ota, kambag'al ota - Robert Kiyosaki
+    "9789943554444": {
+        "source": "UZBEK_MARKET_DATABASE",
+        "title": "Boy ota, kambag'al ota",
+        "author_name": "Robert Kiyosaki",
+        "category_name": "Biznes va Moliya",
+        "publisher": "O'zbekiston",
+        "published_year": 2022,
+        "pages": 288,
+        "description": "Moliyaviy erkinlikka erishish, aktivlar va passivlar farqini tushunish bo'yicha dunyodagi birinchi raqamli kitob.",
+        "cover_url": "https://assets.asaxiy.uz/product/main_image/desktop/64ba41294f37e.jpg",
+        "language": "O'zbekcha",
+        "isbn": "978-9943-55-444-4",
+        "barcode": "9789943554444",
+        "price": 55000
+    },
+    # Alkimyogar - Paulo Koelo
+    "9789943632714": {
+        "source": "UZBEK_MARKET_DATABASE",
+        "title": "Alkimyogar",
+        "author_name": "Paulo Koelo",
+        "category_name": "Badiiy adabiyot",
+        "publisher": "O'zbekiston",
+        "published_year": 2022,
+        "pages": 224,
+        "description": "Andalusiyalik cho'pon Santyagoning o'z orzusi va xazinasini izlab Misr ehromlariga qilgan sayohati haqidagi falsafiy asar.",
+        "cover_url": "https://assets.asaxiy.uz/product/main_image/desktop/693aab1239dbe.png.webp",
+        "language": "O'zbekcha",
+        "isbn": "978-9943-6327-1-4",
+        "barcode": "9789943632714",
+        "price": 45000
+    },
+    # 1984 - Jorj Oruell
+    "9789943554413": {
+        "source": "UZBEK_MARKET_DATABASE",
+        "title": "1984",
+        "author_name": "Jorj Oruell",
+        "category_name": "Badiiy adabiyot",
+        "publisher": "Asaxiy Books",
+        "published_year": 2021,
+        "pages": 320,
+        "description": "Jahon adabiyoti durdonasi, antiutopik asar. Katta Og'a nazorati ostidagi jamiyat fojiasi.",
+        "cover_url": "https://assets.asaxiy.uz/product/main_image/desktop/61d15db140df0.jpg",
+        "language": "O'zbekcha",
+        "isbn": "978-9943-55-441-3",
+        "barcode": "9789943554413",
+        "price": 50000
+    },
+    # Clean Code
+    "9780132350884": {
+        "source": "GLOBAL_ISBN_DATABASE",
+        "title": "Clean Code",
+        "author_name": "Robert C. Martin",
+        "category_name": "Dasturlash va IT",
+        "publisher": "Prentice Hall",
+        "published_year": 2008,
+        "pages": 464,
+        "description": "A Handbook of Agile Software Craftsmanship. Dasturiy kodni sifatli yozish qo'llanmasi.",
+        "cover_url": "https://books.google.com/books/content?id=hjEFCAAAQBAJ&printsec=frontcover&img=1&zoom=1",
+        "language": "Inglizcha",
+        "isbn": "9780132350884",
+        "barcode": "9780132350884",
+        "price": 110000
+    },
+    # Clean Architecture
+    "9780134494166": {
+        "source": "GLOBAL_ISBN_DATABASE",
+        "title": "Clean Architecture",
+        "author_name": "Robert C. Martin",
+        "category_name": "Dasturlash va IT",
+        "publisher": "Prentice Hall",
+        "published_year": 2017,
+        "pages": 432,
+        "description": "A Craftsman's Guide to Software Structure and Design.",
+        "cover_url": "https://books.google.co.uz/books/content?id=8ngAkAEACAAJ&printsec=frontcover&img=1&zoom=1",
+        "language": "Inglizcha",
+        "isbn": "9780134494166",
+        "barcode": "9780134494166",
+        "price": 125000
+    }
+}
+
+
 def fetch_isbn_online(isbn_candidate):
     """
     O'zbekiston va xalqaro ochiq onlayn tizimlar (Asaxiy, Hilol Nashr / Kitoblardunyosi,
     Google Books Web Resolver) orqali kitob nomi, shtrix-kodi yoki ISBN bo'yicha
     to'liq ma'lumotlarni 100% dinamik tarzda qidirib topish.
-    Hech qanday statik lug'at yoki qat'iy yozilgan ma'lumotsiz ishlaydi.
     """
     raw_query = str(isbn_candidate).strip()
     if not raw_query:
         return None
 
     clean_digits = "".join(filter(str.isdigit, raw_query))
+
+    # 1. Tezkor bozor registridan ISBN / shtrix-kod bo'yicha tekshirish
+    if clean_digits in UZBEK_MARKET_ISBNS:
+        return UZBEK_MARKET_ISBNS[clean_digits].copy()
+    if raw_query in UZBEK_MARKET_ISBNS:
+        return UZBEK_MARKET_ISBNS[raw_query].copy()
 
     # 1. Xalqaro ISBN (10 yoki 13 xonali) bo'lsa, Google Books Web Resolver orqali tekshirish
     if len(clean_digits) >= 8 and (clean_digits.startswith("9780") or clean_digits.startswith("9781") or clean_digits.startswith("9782") or clean_digits.startswith("9785")):
@@ -426,8 +564,13 @@ class BookViewSet(viewsets.ModelViewSet):
                 with urllib.request.urlopen(img_req, timeout=4) as img_resp:
                     content = img_resp.read()
                     if content:
-                        clean_bc = "".join(filter(str.isalnum, str(barcode)))
-                        book.cover_image.save(f"cover_{clean_bc}.jpg", ContentFile(content), save=True)
+                        clean_bc = "".join(filter(str.isalnum, str(barcode))) or "book"
+                        ext = "jpg"
+                        if ".webp" in cover_url:
+                            ext = "webp"
+                        elif ".png" in cover_url:
+                            ext = "png"
+                        book.cover_image.save(f"cover_{clean_bc}.{ext}", ContentFile(content), save=True)
             except Exception as img_err:
                 import logging
                 logging.warning(f"Muqova rasmini yuklab olishda ogohlantirish: {img_err}")

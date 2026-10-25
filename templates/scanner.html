@@ -608,15 +608,15 @@
             const cont = document.getElementById('scan-loaded-state');
 
             // -------------------------------------------------------------
-            // HOLAT 1: XALQARO ISBN BAZASIDAN TOPILGAN KITOB (GLOBAL ONLINE)
+            // HOLAT 1: ONLAYN / BOZOR BAZASIDAN TOPILGAN YANGI KITOB
             // -------------------------------------------------------------
-            if (data.found && data.source === 'GLOBAL_ISBN_DATABASE') {
+            if (data.found && (data.online_book || !data.is_in_local_store)) {
                 const ob = data.online_book;
                 addToHistory({
                     title: ob.title,
                     author: ob.author_name,
                     barcode: ob.barcode,
-                    source: 'Xalqaro baza',
+                    source: data.source === 'UZBEK_MARKET_DATABASE' ? 'Milliy bozor' : 'Internet',
                     cover: ob.cover_url
                 });
 
@@ -626,7 +626,7 @@
                             <div class="flex items-center gap-2">
                                 <span class="px-3.5 py-1.5 rounded-full text-xs font-bold bg-indigo-600 text-white flex items-center gap-1.5 shadow">
                                     <i data-lucide="globe" class="w-4 h-4"></i>
-                                    <span>Xalqaro Bazasidan Topildi</span>
+                                    <span>${data.source === 'UZBEK_MARKET_DATABASE' ? 'Bozor Registridan Topildi' : 'Internet Bazasidan Topildi'}</span>
                                 </span>
                                 <span class="text-xs font-mono text-indigo-300 bg-indigo-950/60 px-3 py-1 rounded-xl border border-indigo-800">
                                     Shtrix-kod: ${ob.barcode}
@@ -877,19 +877,47 @@
                         </span>
                     </div>
 
-                    <div class="bg-slate-900/90 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4">
+                    <div class="bg-slate-900/90 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-5">
                         <div class="space-y-1">
                             <h4 class="text-lg font-bold text-white flex items-center gap-2">
                                 <i data-lucide="book-plus" class="w-5 h-5 text-indigo-400"></i>
                                 <span>Ushbu shtrix-kod bilan yangi kitob qo'shish</span>
                             </h4>
                             <p class="text-xs text-slate-400">
-                                Ushbu kitob haqidagi ma'lumotlarni to'ldiring va saqlang. Kitob do'kon omboriga darhol qo'shiladi:
+                                Kitob ma'lumotlarini internetdan bir zumda topishingiz yoki quyidagi maydonlarni to'ldirib saqlashingiz mumkin:
                             </p>
                         </div>
 
+                        <!-- SMART INTERNET SEARCH & AUTO-FILL BOX -->
+                        <div class="p-4 rounded-2xl bg-indigo-950/60 border border-indigo-500/40 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                                    <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
+                                    Internetdan kitob nomini qidirish va avtomatik to'ldirish
+                                </span>
+                                <span class="text-[10px] text-slate-400">Qo'lda yozib o'tirmang!</span>
+                            </div>
+                            <div class="flex gap-2">
+                                <input type="text" id="smart-lookup-input" placeholder="Kitob nomini yozing (masalan: 40, Qirq, Sariq dev, Alkimyogar...)"
+                                    onkeydown="if(event.key === 'Enter'){ event.preventDefault(); searchBookOnlineForFill(); }"
+                                    class="flex-1 px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-600 text-white text-xs placeholder-slate-500 focus:border-indigo-400 focus:outline-none">
+                                <button type="button" onclick="searchBookOnlineForFill()"
+                                    class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow transition shrink-0">
+                                    <i data-lucide="search" class="w-4 h-4"></i>
+                                    <span>Aniqlash</span>
+                                </button>
+                            </div>
+                            <div id="smart-lookup-results" class="hidden"></div>
+                        </div>
+
+                        <div id="manual-cover-preview" class="hidden"></div>
+
                         <form onsubmit="submitCreateManualBook(event)" class="space-y-4">
                             <input type="hidden" id="manual-barcode" value="${bc}">
+                            <input type="hidden" id="manual-cover-url" value="">
+                            <input type="hidden" id="manual-desc" value="">
+                            <input type="hidden" id="manual-year" value="">
+                            <input type="hidden" id="manual-pages" value="">
 
                             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                                 <div class="sm:col-span-2">
@@ -957,26 +985,130 @@
             lucide.createIcons();
         }
 
-        // ADD ONLINE BOOK TO STORE
-        async function submitAddOnlineBook(e) {
-            e.preventDefault();
-            const payload = {
-                title: document.getElementById('add-on-title').value,
-                author_name: document.getElementById('add-on-author').value,
-                barcode: document.getElementById('add-on-barcode').value,
-                category_name: document.getElementById('add-on-category').value,
-                cover_url: document.getElementById('add-on-cover').value,
-                publisher: document.getElementById('add-on-publisher').value,
-                published_year: document.getElementById('add-on-year').value ? Number(document.getElementById('add-on-year').value) : null,
-                pages: document.getElementById('add-on-pages').value ? Number(document.getElementById('add-on-pages').value) : null,
-                description: document.getElementById('add-on-desc').value,
-                price: Number(document.getElementById('add-on-price').value),
-                cost_price: Number(document.getElementById('add-on-cost').value),
-                stock_quantity: Number(document.getElementById('add-on-quantity').value),
-                shelf_location: document.getElementById('add-on-shelf').value
-            };
+        // SMART ONLINE SEARCH FOR FILLING MANUAL FORM
+        async function searchBookOnlineForFill() {
+            const input = document.getElementById('smart-lookup-input');
+            const q = input.value.trim();
+            if (!q) {
+                Swal.fire('Kitob nomi kiritilmadi', 'Masalan: 40, Sariq dev, Alkimyogar...', 'info');
+                return;
+            }
 
-            await sendQuickAddRequest(payload);
+            const resDiv = document.getElementById('smart-lookup-results');
+            resDiv.classList.remove('hidden');
+            resDiv.innerHTML = `
+                <div class="p-3 bg-slate-900 rounded-xl border border-indigo-500/30 text-center text-xs text-indigo-300">
+                    <div class="animate-spin inline-block w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full mr-2 align-middle"></div>
+                    Internetdan qidirilmoqda: <strong>${q}</strong>...
+                </div>
+            `;
+
+            try {
+                const res = await fetch(`/api/scan/?code=${encodeURIComponent(q)}&auto_add=0`);
+                const data = await res.json();
+
+                const book = data.online_book || data.book;
+                if (data.found && book) {
+                    window.currentFoundBookForFill = book;
+                    resDiv.innerHTML = `
+                        <div class="p-3.5 bg-slate-900 rounded-2xl border border-emerald-500/50 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-16 bg-slate-800 rounded-lg overflow-hidden shrink-0 border border-slate-700">
+                                    ${book.cover_url || book.cover_image ? `<img src="${book.cover_url || book.cover_image}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-slate-500 text-[10px]">Rasm yo'q</div>`}
+                                </div>
+                                <div class="space-y-0.5 text-left">
+                                    <div class="text-xs font-bold text-white">${book.title}</div>
+                                    <div class="text-[11px] text-indigo-300 font-medium">Muallif: ${book.author_name || (book.author ? book.author.name : '-')}</div>
+                                    <div class="text-[10px] text-slate-400">${book.publisher || ''} ${book.published_year ? '• ' + book.published_year + '-yil' : ''}</div>
+                                </div>
+                            </div>
+                            <button type="button" onclick="applyOnlineBookToForm()"
+                                class="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow transition">
+                                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                                <span>Formaga to'ldirish</span>
+                            </button>
+                        </div>
+                    `;
+                    lucide.createIcons();
+                } else {
+                    resDiv.innerHTML = `
+                        <div class="p-3 bg-slate-900 rounded-xl border border-rose-500/30 text-rose-300 text-xs">
+                            Internetdan '${q}' bo'yicha kitob topilmadi. Boshqa so'z bilan qidirib ko'ring yoki qo'lda to'ldiring.
+                        </div>
+                    `;
+                }
+            } catch (err) {
+                resDiv.innerHTML = `
+                    <div class="p-3 bg-slate-900 rounded-xl border border-rose-500/30 text-rose-300 text-xs">
+                        Xatolik yuz berdi: ${err.message}
+                    </div>
+                `;
+            }
+        }
+
+        function applyOnlineBookToForm() {
+            const book = window.currentFoundBookForFill;
+            if (!book) return;
+
+            document.getElementById('manual-title').value = book.title || '';
+            document.getElementById('manual-author').value = book.author_name || (book.author ? book.author.name : '');
+            if (book.publisher) document.getElementById('manual-publisher').value = book.publisher;
+            if (book.price) document.getElementById('manual-price').value = book.price;
+            if (book.category_name) {
+                const catSel = document.getElementById('manual-category');
+                let foundOpt = false;
+                for (let opt of catSel.options) {
+                    if (opt.value.toLowerCase() === book.category_name.toLowerCase()) {
+                        opt.selected = true;
+                        foundOpt = true;
+                        break;
+                    }
+                }
+                if (!foundOpt) {
+                    const newOpt = document.createElement('option');
+                    newOpt.value = book.category_name;
+                    newOpt.innerText = book.category_name;
+                    newOpt.selected = true;
+                    catSel.appendChild(newOpt);
+                }
+            }
+            if (document.getElementById('manual-cover-url')) {
+                document.getElementById('manual-cover-url').value = book.cover_url || book.cover_image || '';
+            }
+            if (document.getElementById('manual-desc')) {
+                document.getElementById('manual-desc').value = book.description || '';
+            }
+            if (document.getElementById('manual-year')) {
+                document.getElementById('manual-year').value = book.published_year || '';
+            }
+            if (document.getElementById('manual-pages')) {
+                document.getElementById('manual-pages').value = book.pages || '';
+            }
+
+            // Show preview banner
+            const preview = document.getElementById('manual-cover-preview');
+            const imgUrl = book.cover_url || book.cover_image;
+            if (preview && imgUrl) {
+                preview.classList.remove('hidden');
+                preview.innerHTML = `
+                    <div class="p-3 bg-emerald-950/60 border border-emerald-500/40 rounded-xl flex items-center gap-3">
+                        <img src="${imgUrl}" class="w-10 h-14 object-cover rounded-lg shadow border border-emerald-500/30">
+                        <div class="text-xs">
+                            <span class="text-emerald-300 font-bold block">✓ Kitob ma'lumotlari to'ldirildi!</span>
+                            <span class="text-slate-300">${book.title} (${book.author_name || (book.author ? book.author.name : '')})</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            document.getElementById('smart-lookup-results').classList.add('hidden');
+            Swal.fire({
+                icon: 'success',
+                title: 'Ma\'lumotlar to\'ldirildi!',
+                text: `'${book.title}' kitobining barcha ma'lumotlari kiritildi. Faqat 'Do'kon Bazasiga Saqlash' tugmasini bosing.`,
+                timer: 2000,
+                showConfirmButton: false
+            });
         }
 
         // CREATE MANUAL BOOK
@@ -988,6 +1120,10 @@
                 barcode: document.getElementById('manual-barcode').value.trim(),
                 category_name: document.getElementById('manual-category').value,
                 publisher: document.getElementById('manual-publisher').value.trim(),
+                cover_url: document.getElementById('manual-cover-url') ? document.getElementById('manual-cover-url').value : '',
+                description: document.getElementById('manual-desc') ? document.getElementById('manual-desc').value : '',
+                published_year: document.getElementById('manual-year')?.value ? Number(document.getElementById('manual-year').value) : null,
+                pages: document.getElementById('manual-pages')?.value ? Number(document.getElementById('manual-pages').value) : null,
                 price: Number(document.getElementById('manual-price').value),
                 cost_price: Number(document.getElementById('manual-cost').value),
                 stock_quantity: Number(document.getElementById('manual-quantity').value),

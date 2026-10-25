@@ -710,14 +710,14 @@
                 });
             }
 
-            // 1. Agar xalqaro ISBN bazasidan topilgan yangi kitob bo'lsa
-            if (data.source === 'GLOBAL_ISBN_DATABASE') {
+            // 1. Agar xalqaro yoki bozor bazasidan topilgan yangi kitob bo'lsa
+            if (data.online_book || !data.is_in_local_store) {
                 const ob = data.online_book;
                 cont.innerHTML = `
                     <div class="bg-gradient-to-r from-indigo-50 to-amber-50 p-6 rounded-2xl border-2 border-indigo-200 shadow-md space-y-4">
                         <div class="flex items-center gap-2">
                             <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-600 text-white flex items-center gap-1">
-                                <i data-lucide="globe" class="w-3.5 h-3.5"></i> Xalqaro ISBN Bazasidan Topildi
+                                <i data-lucide="globe" class="w-3.5 h-3.5"></i> ${data.source === 'UZBEK_MARKET_DATABASE' ? 'Bozor Registridan Topildi' : 'Internet Bazasidan Topildi'}
                             </span>
                             <span class="text-xs text-slate-500 font-mono">ISBN: ${ob.isbn}</span>
                         </div>
