@@ -10,37 +10,40 @@ def fetch_isbn_online(isbn_candidate):
     Bozordagi istalgan kitobni avtomatik aniqlash imkonini beradi.
     """
     clean_code = "".join(filter(str.isdigit, str(isbn_candidate)))
-    if len(clean_code) not in [10, 13]:
+    if len(clean_code) < 8:
         return None
 
     # 1. Google Books API
-    try:
-        url = f"https://www.googleapis.com/books/v1/volumes?q=isbn:{clean_code}"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=3) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
-            if data.get('totalItems', 0) > 0:
-                item = data['items'][0]['volumeInfo']
-                authors = ", ".join(item.get('authors', [])) if item.get('authors') else "Noma'lum"
-                images = item.get('imageLinks', {})
-                cover = images.get('thumbnail') or images.get('smallThumbnail')
-                categories = item.get('categories', ['Badiiy adabiyot'])[0] if item.get('categories') else "Badiiy adabiyot"
-                year_str = item.get('publishedDate', '')[:4]
-                return {
-                    "title": item.get('title', "Nomsiz kitob"),
-                    "author_name": authors,
-                    "category_name": categories,
-                    "publisher": item.get('publisher', ''),
-                    "published_year": int(year_str) if year_str.isdigit() else None,
-                    "pages": item.get('pageCount'),
-                    "description": item.get('description', ''),
-                    "cover_url": cover,
-                    "language": item.get('language', "O'zbekcha"),
-                    "isbn": clean_code,
-                    "barcode": clean_code
-                }
-    except Exception:
-        pass
+    for q_param in [f"isbn:{clean_code}", clean_code]:
+        try:
+            url = f"https://www.googleapis.com/books/v1/volumes?q={q_param}&maxResults=1"
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+                if data.get('totalItems', 0) > 0 and 'items' in data:
+                    item = data['items'][0].get('volumeInfo', {})
+                    authors = ", ".join(item.get('authors', [])) if item.get('authors') else "Noma'lum"
+                    images = item.get('imageLinks', {})
+                    cover = images.get('thumbnail') or images.get('smallThumbnail')
+                    if cover and cover.startswith('http://'):
+                        cover = 'https://' + cover[7:]
+                    categories = item.get('categories', ['Badiiy adabiyot'])[0] if item.get('categories') else "Badiiy adabiyot"
+                    year_str = str(item.get('publishedDate', ''))[:4]
+                    return {
+                        "title": item.get('title', "Nomsiz kitob"),
+                        "author_name": authors,
+                        "category_name": categories,
+                        "publisher": item.get('publisher', ''),
+                        "published_year": int(year_str) if year_str.isdigit() else None,
+                        "pages": item.get('pageCount'),
+                        "description": item.get('description', ''),
+                        "cover_url": cover,
+                        "language": item.get('language', "O'zbekcha"),
+                        "isbn": clean_code,
+                        "barcode": clean_code
+                    }
+        except Exception:
+            pass
 
     # 2. Open Library API fallback
     try:
@@ -52,17 +55,48 @@ def fetch_isbn_online(isbn_candidate):
             if key in data:
                 b = data[key]
                 authors = ", ".join([a.get('name', '') for a in b.get('authors', [])]) if b.get('authors') else "Noma'lum"
-                cover = b.get('cover', {}).get('medium') or b.get('cover', {}).get('large')
+                cover = b.get('cover', {}).get('medium') or b.get('cover', {}).get('large') or b.get('cover', {}).get('small')
+                if cover and cover.startswith('http://'):
+                    cover = 'https://' + cover[7:]
                 pub = b.get('publishers', [{}])[0].get('name', '') if b.get('publishers') else ''
-                year = b.get('publish_date', '')[-4:]
+                year = str(b.get('publish_date', ''))[-4:]
                 return {
                     "title": b.get('title', "Nomsiz kitob"),
                     "author_name": authors,
-                    "category_name": "Umumiy adabiyot",
+                    "category_name": "Badiiy adabiyot",
                     "publisher": pub,
                     "published_year": int(year) if year.isdigit() else None,
                     "pages": b.get('number_of_pages'),
-                    "description": b.get('notes', ''),
+                    "description": b.get('notes', '') or b.get('subtitle', ''),
+                    "cover_url": cover,
+                    "language": "O'zbekcha",
+                    "isbn": clean_code,
+                    "barcode": clean_code
+                }
+    except Exception:
+        pass
+
+    # 3. Open Library Search API fallback
+    try:
+        url = f"https://openlibrary.org/search.json?q={clean_code}&limit=1"
+        req = urllib.request.Request(url, headers={'User-Agent': 'BookStoreApp/1.0'})
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            docs = data.get('docs', [])
+            if docs:
+                doc = docs[0]
+                authors = ", ".join(doc.get('author_name', [])) if doc.get('author_name') else "Noma'lum"
+                cover_id = doc.get('cover_i')
+                cover = f"https://covers.openlibrary.org/b/id/{cover_id}-M.jpg" if cover_id else None
+                year = doc.get('first_publish_year')
+                return {
+                    "title": doc.get('title', "Nomsiz kitob"),
+                    "author_name": authors,
+                    "category_name": "Badiiy adabiyot",
+                    "publisher": doc.get('publisher', [''])[0] if doc.get('publisher') else '',
+                    "published_year": int(year) if year and str(year).isdigit() else None,
+                    "pages": doc.get('number_of_pages_median'),
+                    "description": "",
                     "cover_url": cover,
                     "language": "O'zbekcha",
                     "isbn": clean_code,
@@ -160,51 +194,77 @@ class BookViewSet(viewsets.ModelViewSet):
         })
 
     @extend_schema(
-        summary="Yangi kitobni tezkor qo'shish (Skanerdan so'ng)",
+        summary="Yangi kitobni tezkor qo'shish",
         description="Skaner qilingan yangi kitobni do'konga qo'shish (avtomatik kategoriya va muallif biriktiradi)."
     )
     @action(detail=False, methods=['post'], url_path='quick-add')
     def quick_add(self, request):
         title = request.data.get('title')
         barcode = request.data.get('barcode')
+        isbn = request.data.get('isbn') or barcode
         price = request.data.get('price', 50000)
+        cost_price = request.data.get('cost_price', 0)
         stock_quantity = request.data.get('stock_quantity', 1)
         author_name = request.data.get('author_name', "Noma'lum")
-        category_name = request.data.get('category_name', "Umumiy")
+        category_name = request.data.get('category_name', "Badiiy adabiyot")
         shelf_location = request.data.get('shelf_location', 'A-01')
         description = request.data.get('description', '')
         published_year = request.data.get('published_year')
+        publisher = request.data.get('publisher', '')
+        pages = request.data.get('pages')
+        cover_url = request.data.get('cover_url')
 
         if not title or not barcode:
             return Response({"error": "Kitob nomi va shtrix-kodi kiritilishi shart."}, status=status.HTTP_400_BAD_REQUEST)
 
-        category, _ = Category.objects.get_or_create(name=category_name)
-        author, _ = Author.objects.get_or_create(name=author_name)
+        category, _ = Category.objects.get_or_create(name=str(category_name).strip() if category_name else "Badiiy adabiyot")
+        author, _ = Author.objects.get_or_create(name=str(author_name).strip() if author_name else "Noma'lum")
 
         book, created = Book.objects.get_or_create(
-            barcode=barcode,
+            barcode=str(barcode).strip(),
             defaults={
-                'title': title,
+                'title': str(title).strip(),
                 'author': author,
                 'category': category,
+                'isbn': str(isbn).strip(),
                 'price': Decimal(str(price)),
+                'cost_price': Decimal(str(cost_price)) if cost_price else Decimal('0.00'),
                 'stock_quantity': int(stock_quantity),
-                'shelf_location': shelf_location,
-                'description': description,
-                'published_year': published_year if published_year else None,
-                'isbn': barcode
+                'shelf_location': str(shelf_location).strip() if shelf_location else 'A-01',
+                'description': str(description).strip() if description else '',
+                'publisher': str(publisher).strip() if publisher else '',
+                'published_year': int(published_year) if published_year and str(published_year).isdigit() else None,
+                'pages': int(pages) if pages and str(pages).isdigit() else None,
             }
         )
         if not created:
             book.stock_quantity += int(stock_quantity)
             book.price = Decimal(str(price))
+            if cost_price:
+                book.cost_price = Decimal(str(cost_price))
+            if shelf_location:
+                book.shelf_location = str(shelf_location).strip()
             book.save()
+
+        # Agar cover_url mavjud bo'lsa va rasm hali yuklanmagan bo'lsa
+        if cover_url and not book.cover_image:
+            try:
+                from django.core.files.base import ContentFile
+                img_req = urllib.request.Request(cover_url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(img_req, timeout=4) as img_resp:
+                    content = img_resp.read()
+                    if content:
+                        clean_bc = "".join(filter(str.isalnum, str(barcode)))
+                        book.cover_image.save(f"cover_{clean_bc}.jpg", ContentFile(content), save=True)
+            except Exception as img_err:
+                import logging
+                logging.warning(f"Muqova rasmini yuklab olishda ogohlantirish: {img_err}")
 
         serializer = BookDetailSerializer(book, context={'request': request})
         return Response({
             "message": f"'{book.title}' kitobi muvaffaqiyatli do'kon omboriga qo'shildi!",
             "book": serializer.data
-        }, status=status.HTTP_201_CREATED)
+        }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
 
 class CustomerViewSet(viewsets.ModelViewSet):
@@ -497,20 +557,39 @@ class ScanView(APIView):
                             "category_name": online_book['category_name'],
                             "barcode": online_book['barcode'],
                             "isbn": online_book['isbn'],
+                            "publisher": online_book.get('publisher', ''),
                             "description": online_book.get('description', ''),
                             "published_year": online_book.get('published_year'),
+                            "pages": online_book.get('pages'),
+                            "cover_url": online_book.get('cover_url'),
                             "price": 50000,
-                            "stock_quantity": 5
+                            "cost_price": 35000,
+                            "stock_quantity": 5,
+                            "shelf_location": "A-01"
                         }
                     }, status=status.HTTP_200_OK)
 
+                clean_bc = "".join(filter(str.isdigit, str(code))) or code
                 return Response({
                     "found": False,
                     "scanned_code": raw_code,
+                    "barcode": clean_bc,
                     "message": f"'{raw_code}' kodi bo'yicha do'kon bazasida kitob topilmadi.",
                     "hint": "Ushbu kitobni yangi kitob sifatida do'koningizga kiritishingiz mumkin.",
                     "allow_quick_create": True,
-                    "barcode": code
+                    "new_book_template": {
+                        "title": "",
+                        "author_name": "",
+                        "category_name": "Badiiy adabiyot",
+                        "barcode": clean_bc,
+                        "isbn": clean_bc,
+                        "price": 50000,
+                        "cost_price": 35000,
+                        "stock_quantity": 5,
+                        "shelf_location": "A-01",
+                        "publisher": "",
+                        "description": ""
+                    }
                 }, status=status.HTTP_404_NOT_FOUND)
 
             # Kitob topildi! To'liq ma'lumotlarni yig'amiz
@@ -522,10 +601,10 @@ class ScanView(APIView):
                 stock_message = f"Omborda yetarli: {book.stock_quantity} dona mavjud"
             elif book.stock_quantity > 0:
                 stock_badge = "LOW_STOCK"
-                stock_message = f"Diqqat! Qoldiq kam: {book.stock_quantity} dona qoldi"
+                stock_message = f"Diqqat: Qoldiq kam, {book.stock_quantity} dona qoldi"
             else:
                 stock_badge = "OUT_OF_STOCK"
-                stock_message = "Tugagan! Omborda qolmagan (0 dona)"
+                stock_message = "Tugagan: Omborda qolmagan"
 
             # Sotuvlar statistikasi
             total_sold = SaleItem.objects.filter(book=book, sale__status='COMPLETED').aggregate(
@@ -689,6 +768,36 @@ def web_app_view(request):
         'categories': categories,
         'customers': customers,
         'books': books
+    })
+
+
+def scanner_page_view(request):
+    """
+    Kengaytirilgan alohida skanerlash sahifasi (/scanner/)
+    """
+    try:
+        categories = list(Category.objects.all().order_by('name'))
+        customers = list(Customer.objects.all().order_by('first_name'))
+        recent_books = list(Book.objects.filter(is_active=True).select_related('author', 'category').order_by('-created_at', '-id')[:8])
+    except Exception as e:
+        import logging
+        logging.error(f"Database error in scanner_page_view: {e}. Running auto-migration...")
+        try:
+            from django.core.management import call_command
+            call_command('migrate', interactive=False)
+            from seed_data import run_seed
+            run_seed()
+            categories = list(Category.objects.all().order_by('name'))
+            customers = list(Customer.objects.all().order_by('first_name'))
+            recent_books = list(Book.objects.filter(is_active=True).select_related('author', 'category').order_by('-created_at', '-id')[:8])
+        except Exception as mig_err:
+            logging.error(f"Auto-migration error in scanner_page_view: {mig_err}")
+            categories, customers, recent_books = [], [], []
+
+    return render(request, 'scanner.html', {
+        'categories': categories,
+        'customers': customers,
+        'recent_books': recent_books
     })
 
 

@@ -39,16 +39,18 @@
                     </div>
                 </a>
 
-                <!-- Right Actions: Sotuvchi Tugmasi & Links -->
+                <!-- Right Actions: Skanerlash, Sotuvchi & Links -->
                 <div class="flex items-center space-x-3 sm:space-x-4">
-                    <!-- SOTUVCHI BUTTON (MAIN CTA) -->
+                    <!-- SKANERLASH BUTTON (DIRECT TO /scanner/) -->
+                    <a href="/scanner/" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/30 transition transform active:scale-95">
+                        <i data-lucide="scan-barcode" class="w-4 h-4"></i>
+                        <span>Skanerlash</span>
+                    </a>
+
+                    <!-- SOTUVCHI BUTTON -->
                     <button onclick="openSellerModal()" class="relative group px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-sm flex items-center gap-2 shadow-lg shadow-amber-500/25 transition transform active:scale-95">
-                        <span class="flex h-2 w-2 relative">
-                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-900 opacity-75"></span>
-                            <span class="relative inline-flex rounded-full h-2 w-2 bg-slate-950"></span>
-                        </span>
                         <i data-lucide="store" class="w-4 h-4 text-slate-950"></i>
-                        <span>Sotuvchi (Kassa)</span>
+                        <span>Sotuvchi</span>
                     </button>
 
                     <a href="/api/docs/" target="_blank" class="hidden md:flex px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold items-center gap-1.5 transition border border-slate-700">
@@ -95,7 +97,7 @@
             <!-- Categories Filter Pills -->
             <div class="flex flex-wrap items-center justify-center gap-2 pt-2" id="category-pills">
                 <button onclick="filterCategory('ALL')" class="category-pill active px-4 py-2 rounded-xl text-xs font-bold transition bg-indigo-600 text-white shadow-md">
-                    Barchasi (<span id="total-books-badge">{{ books|length }}</span>)
+                    Barchasi: <span id="total-books-badge">{{ books|length }}</span> ta
                 </button>
                 {% for cat in categories %}
                 <button onclick="filterCategory('{{ cat.name }}')" class="category-pill px-4 py-2 rounded-xl text-xs font-semibold transition bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700">
@@ -154,7 +156,7 @@
                         </span>
                         {% else %}
                         <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-500/90 text-white backdrop-blur-sm shadow-sm flex items-center gap-1">
-                            Tugagan (0)
+                            Tugagan
                         </span>
                         {% endif %}
                     </div>
@@ -235,7 +237,7 @@
                         <i data-lucide="store" class="w-5 h-5"></i>
                     </div>
                     <div>
-                        <h3 class="text-lg font-bold">Sotuvchi Ishchi Paneli (Kassa & POS)</h3>
+                        <h3 class="text-lg font-bold">Sotuvchi Ishchi Paneli</h3>
                         <p class="text-xs text-slate-400">Skanerlash, xarid qilish, qarzga rasmiylashtirish va qarzlar daftari</p>
                     </div>
                 </div>
@@ -248,11 +250,11 @@
             <div class="bg-slate-100 border-b border-slate-200 px-6 shrink-0 flex space-x-4">
                 <button onclick="switchSellerTab('pos-scan-tab')" id="seller-tab-btn-scan" class="py-3 px-3 text-sm font-bold border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2">
                     <i data-lucide="scan-barcode" class="w-4 h-4"></i>
-                    <span>Skaner & Tezkor Savdo</span>
+                    <span>Skaner va Savdo</span>
                 </button>
                 <button onclick="switchSellerTab('pos-debts-tab')" id="seller-tab-btn-debts" class="py-3 px-3 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center gap-2">
                     <i data-lucide="book-marked" class="w-4 h-4"></i>
-                    <span>Qarzlar Daftari (Nasiya)</span>
+                    <span>Qarzlar Daftari</span>
                 </button>
                 <button onclick="switchSellerTab('pos-stats-tab')" id="seller-tab-btn-stats" class="py-3 px-3 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center gap-2">
                     <i data-lucide="bar-chart-2" class="w-4 h-4"></i>
@@ -275,7 +277,7 @@
 
                             <form onsubmit="handlePosScan(event)" class="relative flex items-center mt-3">
                                 <input type="text" id="pos-scan-input" autofocus
-                                       placeholder="Shtrix-kod (masalan 9789943001111) yoki QR JSON..."
+                                       placeholder="Shtrix-kod yoki QR JSON..."
                                        class="w-full pl-11 pr-32 py-3.5 text-sm font-mono border-2 border-indigo-200 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 shadow-inner">
                                 <div class="absolute left-3.5 text-indigo-500">
                                     <i data-lucide="scan" class="w-5 h-5"></i>
@@ -289,6 +291,13 @@
                                     </button>
                                 </div>
                             </form>
+
+                            <div class="pt-2">
+                                <a href="/scanner/" class="inline-flex items-center gap-1.5 text-xs text-indigo-600 font-bold hover:underline">
+                                    <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+                                    <span>Kengaytirilgan alohida skanerlash sahifasini ochish</span>
+                                </a>
+                            </div>
 
                             <!-- Camera Box -->
                             <div id="pos-camera-wrapper" class="hidden mt-3 p-3 border-2 border-dashed border-indigo-300 rounded-2xl bg-indigo-50/50">
@@ -390,7 +399,7 @@
             <div class="flex justify-between items-center pb-3 border-b border-slate-100">
                 <h3 class="font-bold text-slate-900 flex items-center gap-2">
                     <i data-lucide="shopping-cart" class="w-5 h-5 text-indigo-600"></i>
-                    Kitob Sotish (Kitob olish)
+                    Kitob Sotish
                 </h3>
                 <button onclick="closeSaleModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
@@ -411,11 +420,11 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Mijoz (Ixtiyoriy)</label>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Mijoz tanlang</label>
                     <select id="sale-customer-id" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-200">
                         <option value="">-- Anonim xaridor --</option>
                         {% for c in customers %}
-                        <option value="{{ c.id }}">{{ c.full_name }} ({{ c.phone }})</option>
+                        <option value="{{ c.id }}">{{ c.full_name }} — {{ c.phone }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -424,13 +433,13 @@
                     <label class="block text-xs font-bold text-slate-700 mb-1">To'lov turi</label>
                     <select id="sale-payment-method" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm">
                         <option value="CASH">Naqd pul</option>
-                        <option value="CARD">Bank kartasi (Uzcard / Humo / Click / Payme)</option>
-                        <option value="DEBT">Nasiya / Qarzga yozish</option>
+                        <option value="CARD">Bank kartasi: Uzcard, Humo, Click</option>
+                        <option value="DEBT">Nasiyaga yozish</option>
                     </select>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Chegirma (so'm)</label>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Chegirma miqdori, so'm</label>
                     <input type="number" id="sale-discount" value="0" min="0" oninput="calculateSaleTotal()"
                         class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm">
                 </div>
@@ -455,7 +464,7 @@
             <div class="flex justify-between items-center pb-3 border-b border-slate-100">
                 <h3 class="font-bold text-slate-900 flex items-center gap-2">
                     <i data-lucide="hand-coins" class="w-5 h-5 text-amber-600"></i>
-                    Kitobni Qarzga Berish (Nasiya / Ijara)
+                    Nasiyaga Berish
                 </h3>
                 <button onclick="closeDebtModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
@@ -470,37 +479,37 @@
                     <label class="block text-xs font-bold text-slate-700 mb-1">Mijozni tanlang *</label>
                     <select id="debt-customer-id" required class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm">
                         {% for c in customers %}
-                        <option value="{{ c.id }}">{{ c.full_name }} ({{ c.phone }})</option>
+                        <option value="{{ c.id }}">{{ c.full_name }} — {{ c.phone }}</option>
                         {% endfor %}
                     </select>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Qarz turi</label>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Nasiya turi</label>
                     <select id="debt-borrow-type" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm">
-                        <option value="PURCHASE_DEBT">Nasiyaga sotib olish (kitob mijozda qoladi, pulini to'laydi)</option>
-                        <option value="RENT_BORROW">Ijaraga / O'qishga olish (kitobni o'qib qaytaradi)</option>
+                        <option value="PURCHASE_DEBT">Nasiyaga sotib olish: pulini to'laydi</option>
+                        <option value="RENT_BORROW">Ijaraga berish: kitobni qaytaradi</option>
                     </select>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Qaytarish / To'lash muddati *</label>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Qaytarish yoki to'lash muddati *</label>
                     <input type="date" id="debt-due-date" required class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Dastlabki to'lov (agar bergan bo'lsa)</label>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Dastlabki to'lov miqdori</label>
                     <input type="number" id="debt-initial-payment" value="0" min="0" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Izoh / Kelishuv</label>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Izoh</label>
                     <textarea id="debt-notes" rows="2" placeholder="Izoh..." class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm"></textarea>
                 </div>
 
                 <div class="flex gap-2 pt-2">
                     <button type="button" onclick="closeDebtModal()" class="flex-1 py-2.5 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl">Bekor qilish</button>
-                    <button type="submit" class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow">Qarzga berish</button>
+                    <button type="submit" class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow">Nasiyaga rasmiylashtirish</button>
                 </div>
             </form>
         </div>
@@ -522,7 +531,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">To'lov summasi (so'm) *</label>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">To'lov summasi, so'm *</label>
                     <input type="number" id="pay-amount" required min="1" step="any"
                         class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm">
                 </div>
@@ -531,7 +540,7 @@
                     <label class="block text-xs font-bold text-slate-700 mb-1">To'lov turi</label>
                     <select id="pay-method" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm">
                         <option value="CASH">Naqd pul</option>
-                        <option value="CARD">Bank kartasi (Uzcard / Humo / Click)</option>
+                        <option value="CARD">Bank kartasi: Uzcard, Humo</option>
                     </select>
                 </div>
 
@@ -632,7 +641,7 @@
             resCont.innerHTML = `
                 <div class="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200">
                     <div class="animate-spin inline-block w-6 h-6 border-4 border-indigo-600 border-t-transparent rounded-full mb-2"></div>
-                    <p class="text-xs font-semibold text-slate-600">Skaner qilinmoqda (${code})...</p>
+                    <p class="text-xs font-semibold text-slate-600">Skaner qilinmoqda: ${code}...</p>
                 </div>
             `;
 
@@ -657,10 +666,16 @@
 
                 if (!data || !data.found) {
                     resCont.innerHTML = `
-                        <div class="p-6 text-center bg-rose-50 border border-rose-200 rounded-2xl text-rose-700">
-                            <i data-lucide="alert-circle" class="w-8 h-8 mx-auto mb-2 text-rose-500"></i>
+                        <div class="p-6 text-center bg-rose-50 border border-rose-200 rounded-2xl text-rose-700 space-y-3">
+                            <i data-lucide="alert-circle" class="w-8 h-8 mx-auto text-rose-500"></i>
                             <h5 class="font-bold text-sm">Kitob topilmadi</h5>
                             <p class="text-xs">${data ? (data.message || 'Bunday shtrix-kod yoki QR-kod bazada mavjud emas.') : 'Kitob topilmadi'}</p>
+                            <div class="pt-2">
+                                <a href="/scanner/" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow">
+                                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                                    <span>Yangi kitob sifatida qo'shish</span>
+                                </a>
+                            </div>
                         </div>
                     `;
                     lucide.createIcons();
@@ -712,7 +727,7 @@
                             <input type="hidden" id="qa-desc" value="${(ob.description || '').replace(/"/g, '&quot;')}">
 
                             <div>
-                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Sotish narxi (so'm) *</label>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">Sotish narxi, so'm *</label>
                                 <input type="number" id="qa-price" value="50000" min="1000" step="500" required class="w-full px-3 py-2 border rounded-xl text-xs font-bold text-slate-900">
                             </div>
                             <div>
@@ -741,7 +756,7 @@
                 borrowersHtml = `
                     <div class="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
                         <span class="text-[11px] font-bold text-amber-900 block mb-1">
-                            ⚠️ Hozirda qarzda olganlar (${b.active_borrowers.length} kishi):
+                            ⚠️ Hozirda qarzda olganlar: ${b.active_borrowers.length} kishi:
                         </span>
                         <div class="space-y-1">
                             ${b.active_borrowers.map(borrower => `
@@ -783,10 +798,10 @@
 
                         <div class="flex gap-2 pt-3 border-t border-slate-100 mt-2">
                             <button onclick="directSale(${b.id}, '${b.title.replace(/'/g, "\\'")}', ${b.price}, ${b.stock_quantity})" class="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow flex items-center justify-center gap-1">
-                                <i data-lucide="shopping-bag" class="w-3.5 h-3.5"></i> Xarid (Sotish)
+                                <i data-lucide="shopping-bag" class="w-3.5 h-3.5"></i> Xarid qilish
                             </button>
                             <button onclick="directDebt(${b.id}, '${b.title.replace(/'/g, "\\'")}', ${b.price}, ${b.stock_quantity})" class="flex-1 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow flex items-center justify-center gap-1">
-                                <i data-lucide="hand-coins" class="w-3.5 h-3.5"></i> Nasiya (Qarz)
+                                <i data-lucide="hand-coins" class="w-3.5 h-3.5"></i> Nasiyaga berish
                             </button>
                         </div>
                     </div>
@@ -1079,7 +1094,7 @@
                                        d.status === 'RETURNED' ? 'bg-blue-100 text-blue-800' :
                                        d.is_overdue || d.status === 'OVERDUE' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800';
 
-                    const booksList = d.items ? d.items.map(i => `${i.book_title} (${i.quantity} dona)`).join(', ') : '-';
+                    const booksList = d.items ? d.items.map(i => `${i.book_title} — ${i.quantity} dona`).join(', ') : '-';
 
                     return `
                         <tr class="hover:bg-slate-50 transition">

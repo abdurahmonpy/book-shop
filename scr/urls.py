@@ -8,14 +8,17 @@ from django.conf.urls.static import static
 from django.views.static import serve
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
-from app.views import web_app_view
+from app.views import web_app_view, scanner_page_view
 
 urlpatterns = [
     # Admin panel
     path('admin/', admin.site.urls),
 
-    # Do'kon interfeysi (Skaner va boshqaruv paneli)
+    # Do'kon vitrinasi (Bosh sahifa)
     path('', web_app_view, name='home'),
+
+    # Alohida Skanerlash sahifasi
+    path('scanner/', scanner_page_view, name='scanner'),
 
     # REST Framework API lari
     path('api/', include('app.urls')),

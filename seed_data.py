@@ -92,7 +92,7 @@ def run_seed():
             "description": "Ona madhi, samimiy xotiralar va ibratli insoniy munosabatlar."
         },
         {
-            "title": "Clean Code (Toza Kod)",
+            "title": "Clean Code",
             "author": auth_uncle_bob,
             "category": cat_it,
             "isbn": "978-013-235-088-4",
@@ -107,7 +107,7 @@ def run_seed():
             "description": "Har bir dasturchi o'qishi shart bo'lgan eng mashhur kitob."
         },
         {
-            "title": "Atom Odatlar (Atomic Habits)",
+            "title": "Atom Odatlar",
             "author": auth_clear,
             "category": cat_psixologiya,
             "isbn": "978-9943-55-444-4",

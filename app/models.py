@@ -204,8 +204,8 @@ class Customer(models.Model):
 class Sale(models.Model):
     PAYMENT_METHODS = [
         ('CASH', "Naqd pul"),
-        ('CARD', "Bank kartasi (Uzcard/Humo/Click/Payme)"),
-        ('DEBT', "Nasiya / Qarz"),
+        ('CARD', "Bank kartasi"),
+        ('DEBT', "Nasiya"),
         ('MIXED', "Aralash to'lov"),
     ]
 
@@ -230,7 +230,7 @@ class Sale(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Sotilgan vaqti")
 
     class Meta:
-        verbose_name = "Sotuv (Xarid)"
+        verbose_name = "Sotuv"
         verbose_name_plural = "Sotuvlar"
         ordering = ['-created_at']
 
@@ -261,14 +261,14 @@ class SaleItem(models.Model):
 
 class Debt(models.Model):
     BORROW_TYPES = [
-        ('PURCHASE_DEBT', "Nasiyaga sotib olish (kitob mijozda qoladi, pulini to'laydi)"),
-        ('RENT_BORROW', "Ijaraga / O'qishga olish (kitobni o'qib qaytaradi)"),
+        ('PURCHASE_DEBT', "Nasiyaga sotib olish"),
+        ('RENT_BORROW', "Ijaraga berish"),
     ]
 
     DEBT_STATUSES = [
-        ('PENDING', "To'lanmagan / Faol qarz"),
+        ('PENDING', "To'lanmagan faol qarz"),
         ('PARTIAL', "Qisman to'langan"),
-        ('PAID', "To'liq to'langan (Qarz yopilgan)"),
+        ('PAID', "To'liq to'langan"),
         ('RETURNED', "Kitob qaytarildi"),
         ('OVERDUE', "Muddati o'tgan"),
     ]
@@ -339,7 +339,7 @@ class DebtItem(models.Model):
     quantity = models.PositiveIntegerField(default=1, verbose_name="Soni")
     unit_price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Dona narxi")
     total_price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Jami narxi")
-    is_returned = models.BooleanField(default=False, verbose_name="Qaytarildimi (Ijara uchun)")
+    is_returned = models.BooleanField(default=False, verbose_name="Qaytarildimi")
 
     class Meta:
         verbose_name = "Qarzga berilgan kitob"
