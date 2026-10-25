@@ -502,12 +502,17 @@ class DashboardStatsView(APIView):
 
 def web_app_view(request):
     """
-    Do'kon xodimi uchun qulay interaktiv veb-interfeys:
-    Skaner, Kitob qidirish, Tezkor sotish, Qarzga berish va Qarz daftari
+    Do'kon vitrinasi va sotuvchi kassa boshqaruv paneli
     """
-    categories = Category.objects.all()
-    customers = Customer.objects.all()
-    books = Book.objects.select_related('author', 'category').all()[:50]
+    try:
+        categories = list(Category.objects.all())
+        customers = list(Customer.objects.all())
+        books = list(Book.objects.select_related('author', 'category').all()[:50])
+    except Exception as e:
+        import logging
+        logging.error(f"Database error in web_app_view: {e}")
+        categories, customers, books = [], [], []
+
     return render(request, 'index.html', {
         'categories': categories,
         'customers': customers,

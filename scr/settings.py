@@ -19,17 +19,22 @@ SECRET_KEY = os.environ.get(
 DEBUG = os.environ.get('DEBUG', 'True').lower() in ['true', '1', 'yes']
 
 # Allowed hosts
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
+raw_hosts = os.environ.get('ALLOWED_HOSTS', '*')
+if raw_hosts == '*':
+    ALLOWED_HOSTS = ['*']
+else:
+    ALLOWED_HOSTS = [h.strip() for h in raw_hosts.split(',') if h.strip()]
 
 # CSRF Trusted Origins for Railway & HTTPS
 CSRF_TRUSTED_ORIGINS = [
     'https://*.railway.app',
+    'https://*.up.railway.app',
     'http://localhost:8000',
     'http://127.0.0.1:8000',
 ]
 extra_csrf = os.environ.get('CSRF_TRUSTED_ORIGINS')
 if extra_csrf:
-    CSRF_TRUSTED_ORIGINS.extend([origin.strip() for origin in extra_csrf.split(',')])
+    CSRF_TRUSTED_ORIGINS.extend([origin.strip() for origin in extra_csrf.split(',') if origin.strip()])
 
 # Application definition
 INSTALLED_APPS = [
@@ -122,10 +127,20 @@ USE_I18N = True
 USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# WhiteNoise storage configuration (non-strict to prevent 500 errors)
+WHITENOISE_MANIFEST_STRICT = False
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
 
 # Media files (Barcodes, QR codes, Book covers)
 MEDIA_URL = '/media/'
@@ -159,5 +174,32 @@ SPECTACULAR_SETTINGS = {
     'ENUM_NAME_OVERRIDES': {
         'SalePaymentMethodEnum': 'app.models.Sale.PAYMENT_METHODS',
         'DebtPaymentMethodEnum': 'app.models.DebtPayment.PAYMENT_METHODS',
+    },
+}
+
+# Detailed Console Logging for Production Debugging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
     },
 }
