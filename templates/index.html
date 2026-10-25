@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kitob Do'koni Boshqaruv Tizimi (Bookstore System)</title>
+    <title>Kitob Do'koni — Barcha Kitoblar Katalogi & POS Tizimi</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -15,260 +15,404 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .book-card:hover .book-actions { opacity: 1; transform: translateY(0); }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased">
 
-    <!-- Navbar -->
-    <header class="bg-indigo-900 text-white shadow-lg sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
-            <div class="flex items-center space-x-3">
-                <div class="bg-indigo-600 p-2 rounded-xl">
-                    <i data-lucide="book-open" class="w-6 h-6 text-white"></i>
-                </div>
-                <div>
-                    <h1 class="text-lg font-bold tracking-tight">Kitob Do'koni POS & API</h1>
-                    <p class="text-xs text-indigo-200">Shtrix-kod, QR-kod, Kitob olish & Qarz daftari</p>
-                </div>
-            </div>
-            <div class="flex items-center space-x-3">
-                <a href="/api/docs/" target="_blank" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
-                    <i data-lucide="file-code" class="w-4 h-4"></i>
-                    <span>Swagger API Docs</span>
+    <!-- ================= NAVBAR ================= -->
+    <header class="bg-slate-900 text-white shadow-xl sticky top-0 z-40 border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-20">
+                <!-- Brand / Logo -->
+                <a href="/" class="flex items-center space-x-3 group">
+                    <div class="w-11 h-11 bg-gradient-to-tr from-indigo-600 to-indigo-500 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition">
+                        <i data-lucide="book-open" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div>
+                        <span class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+                            KITOB DO'KONI
+                        </span>
+                        <span class="block text-[11px] font-semibold uppercase tracking-wider text-indigo-400">
+                            Katalog & Boshqaruv Tizimi
+                        </span>
+                    </div>
                 </a>
-                <a href="/admin/" target="_blank" class="px-3 py-1.5 bg-indigo-800 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
-                    <i data-lucide="shield" class="w-4 h-4"></i>
-                    <span>Admin Panel</span>
-                </a>
+
+                <!-- Right Actions: Sotuvchi Tugmasi & Links -->
+                <div class="flex items-center space-x-3 sm:space-x-4">
+                    <!-- SOTUVCHI BUTTON (MAIN CTA) -->
+                    <button onclick="openSellerModal()" class="relative group px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-sm flex items-center gap-2 shadow-lg shadow-amber-500/25 transition transform active:scale-95">
+                        <span class="flex h-2 w-2 relative">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-900 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-slate-950"></span>
+                        </span>
+                        <i data-lucide="store" class="w-4 h-4 text-slate-950"></i>
+                        <span>Sotuvchi (Kassa)</span>
+                    </button>
+
+                    <a href="/api/docs/" target="_blank" class="hidden md:flex px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold items-center gap-1.5 transition border border-slate-700">
+                        <i data-lucide="file-code" class="w-3.5 h-3.5 text-emerald-400"></i>
+                        <span>Swagger API</span>
+                    </a>
+
+                    <a href="/admin/" target="_blank" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition border border-slate-700">
+                        <i data-lucide="shield" class="w-3.5 h-3.5 text-indigo-400"></i>
+                        <span class="hidden sm:inline">Admin</span>
+                    </a>
+                </div>
             </div>
         </div>
     </header>
 
-    <!-- Main Navigation Tabs -->
-    <div class="bg-white border-b border-slate-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <nav class="flex space-x-8" aria-label="Tabs">
-                <button onclick="switchTab('scanner-tab')" id="tab-btn-scanner" class="border-indigo-600 text-indigo-600 border-b-2 py-4 px-1 text-sm font-semibold flex items-center gap-2">
+
+    <!-- ================= HERO & FILTERS ================= -->
+    <section class="bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white py-12 px-4 sm:px-6 lg:px-8 border-b border-slate-800">
+        <div class="max-w-7xl mx-auto text-center space-y-6">
+            <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 backdrop-blur-sm">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-indigo-400"></i>
+                Ombordagi Barcha Kitoblar Vitrinasi
+            </span>
+            <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-white max-w-3xl mx-auto leading-tight">
+                Sevimli asarlaringizni toping, xarid qiling yoki <span class="bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent">nasiyaga oling</span>
+            </h1>
+            <p class="text-sm sm:text-base text-slate-400 max-w-2xl mx-auto">
+                Barcha kitoblarning shtrix-kodi, ombordagi aniq qoldig'i va polkadagi joylashuvi real vaqtda ko'rsatiladi.
+            </p>
+
+            <!-- Search Bar in Hero -->
+            <div class="max-w-2xl mx-auto pt-2">
+                <div class="relative flex items-center">
+                    <input type="text" id="catalog-search" oninput="handleCatalogSearch(this.value)"
+                        placeholder="Kitob nomi, muallif yoki shtrix-kod orqali qidiring..."
+                        class="w-full pl-12 pr-4 py-4 rounded-2xl bg-slate-800/80 border border-slate-700 text-white placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition text-sm shadow-xl backdrop-blur-md">
+                    <div class="absolute left-4 pointer-events-none text-slate-400">
+                        <i data-lucide="search" class="w-5 h-5"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Categories Filter Pills -->
+            <div class="flex flex-wrap items-center justify-center gap-2 pt-2" id="category-pills">
+                <button onclick="filterCategory('ALL')" class="category-pill active px-4 py-2 rounded-xl text-xs font-bold transition bg-indigo-600 text-white shadow-md">
+                    Barchasi (<span id="total-books-badge">{{ books|length }}</span>)
+                </button>
+                {% for cat in categories %}
+                <button onclick="filterCategory('{{ cat.name }}')" class="category-pill px-4 py-2 rounded-xl text-xs font-semibold transition bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700">
+                    {{ cat.name }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+
+    <!-- ================= MAIN CATALOG SHOWCASE (BOOKS GRID) ================= -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-1 w-full">
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="library" class="w-5 h-5 text-indigo-600"></i>
+                    Kitoblar Katalogi
+                </h2>
+                <p class="text-xs text-slate-500">Mavjud barcha nusxalar, narxlar va joylashuvi</p>
+            </div>
+            <div class="text-xs font-semibold text-slate-500" id="showing-count">
+                Jami: {{ books|length }} ta kitob ko'rsatilmoqda
+            </div>
+        </div>
+
+        <!-- Books Grid -->
+        <div id="catalog-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            {% for book in books %}
+            <div class="book-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between group"
+                 data-title="{{ book.title|lower }}"
+                 data-author="{{ book.author.name|default:''|lower }}"
+                 data-barcode="{{ book.barcode }}"
+                 data-category="{{ book.category.name|default:'' }}">
+
+                <!-- Cover Image Container -->
+                <div class="relative h-64 bg-slate-100 overflow-hidden cursor-pointer" onclick="openBookDetailModal({{ book.id }})">
+                    {% if book.cover_image %}
+                    <img src="{{ book.cover_image.url }}" alt="{{ book.title }}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                    {% else %}
+                    <div class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-tr from-slate-200 to-slate-100 p-4 text-center">
+                        <i data-lucide="book" class="w-12 h-12 text-slate-400 mb-2"></i>
+                        <span class="text-xs font-bold text-slate-600 line-clamp-2">{{ book.title }}</span>
+                    </div>
+                    {% endif %}
+
+                    <!-- Stock Status Badge -->
+                    <div class="absolute top-3 left-3">
+                        {% if book.stock_quantity > 5 %}
+                        <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/90 text-white backdrop-blur-sm shadow-sm flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-white"></span> {{ book.stock_quantity }} dona
+                        </span>
+                        {% elif book.stock_quantity > 0 %}
+                        <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/90 text-white backdrop-blur-sm shadow-sm flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-white"></span> {{ book.stock_quantity }} dona qoldi
+                        </span>
+                        {% else %}
+                        <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-500/90 text-white backdrop-blur-sm shadow-sm flex items-center gap-1">
+                            Tugagan (0)
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Shelf Location Badge -->
+                    <div class="absolute top-3 right-3">
+                        <span class="px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold bg-slate-900/80 text-white backdrop-blur-sm">
+                            Polka: {{ book.shelf_location|default:"-" }}
+                        </span>
+                    </div>
+
+                    <!-- Hover Quick Preview Overlay -->
+                    <div class="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                        <span class="px-3 py-1.5 rounded-xl bg-white text-slate-900 font-bold text-xs shadow-lg flex items-center gap-1">
+                            <i data-lucide="eye" class="w-3.5 h-3.5"></i> Batafsil
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Book Details -->
+                <div class="p-4 flex-1 flex flex-col justify-between space-y-3">
+                    <div>
+                        <div class="flex items-center justify-between text-[11px] text-slate-400 mb-1 font-medium">
+                            <span class="text-indigo-600 font-semibold">{{ book.category.name|default:"Umumiy" }}</span>
+                            <span class="font-mono text-slate-400">#{{ book.barcode|slice:":10" }}...</span>
+                        </div>
+
+                        <h3 class="font-bold text-slate-900 text-sm leading-snug line-clamp-2 hover:text-indigo-600 cursor-pointer transition" onclick="openBookDetailModal({{ book.id }})">
+                            {{ book.title }}
+                        </h3>
+
+                        <p class="text-xs text-slate-500 mt-1 line-clamp-1">
+                            {{ book.author.name|default:"Muallif noma'lum" }}
+                        </p>
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-100">
+                        <div class="flex items-baseline justify-between">
+                            <span class="text-xs text-slate-400 font-medium">Narxi:</span>
+                            <span class="text-base font-extrabold text-slate-900">
+                                {{ book.price|floatformat:0 }} so'm
+                            </span>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="grid grid-cols-2 gap-1.5 mt-3">
+                            <button onclick="directSale({{ book.id }}, '{{ book.title|escapejs }}', {{ book.price }}, {{ book.stock_quantity }})"
+                                    class="py-2 px-2 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1">
+                                <i data-lucide="shopping-bag" class="w-3.5 h-3.5"></i>
+                                <span>Sotish</span>
+                            </button>
+                            <button onclick="directDebt({{ book.id }}, '{{ book.title|escapejs }}', {{ book.price }}, {{ book.stock_quantity }})"
+                                    class="py-2 px-2 bg-amber-50 hover:bg-amber-600 hover:text-white text-amber-800 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1">
+                                <i data-lucide="hand-coins" class="w-3.5 h-3.5"></i>
+                                <span>Nasiya</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-span-full py-16 text-center text-slate-400">
+                <i data-lucide="book-x" class="w-12 h-12 mx-auto text-slate-300 mb-3"></i>
+                <p class="text-base font-semibold">Hozircha kitoblar mavjud emas.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+
+
+    <!-- ================= SOTUVCHI MODAL (CASHIER / SELLER POS TERMINAL) ================= -->
+    <div id="seller-modal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-in fade-in">
+        <div class="bg-white rounded-3xl max-w-5xl w-full h-[90vh] shadow-2xl flex flex-col overflow-hidden border border-slate-200">
+            <!-- Modal Header -->
+            <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center border-b border-slate-800 shrink-0">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2 bg-amber-500 rounded-xl text-slate-950">
+                        <i data-lucide="store" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold">Sotuvchi Ishchi Paneli (Kassa & POS)</h3>
+                        <p class="text-xs text-slate-400">Skanerlash, xarid qilish, qarzga rasmiylashtirish va qarzlar daftari</p>
+                    </div>
+                </div>
+                <button onclick="closeSellerModal()" class="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <!-- Sub Navigation Tabs inside Seller Panel -->
+            <div class="bg-slate-100 border-b border-slate-200 px-6 shrink-0 flex space-x-4">
+                <button onclick="switchSellerTab('pos-scan-tab')" id="seller-tab-btn-scan" class="py-3 px-3 text-sm font-bold border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2">
                     <i data-lucide="scan-barcode" class="w-4 h-4"></i>
                     <span>Skaner & Tezkor Savdo</span>
                 </button>
-                <button onclick="switchTab('debts-tab')" id="tab-btn-debts" class="border-transparent text-slate-500 hover:text-slate-700 border-b-2 py-4 px-1 text-sm font-semibold flex items-center gap-2">
-                    <i data-lucide="credit-card" class="w-4 h-4"></i>
+                <button onclick="switchSellerTab('pos-debts-tab')" id="seller-tab-btn-debts" class="py-3 px-3 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center gap-2">
+                    <i data-lucide="book-marked" class="w-4 h-4"></i>
                     <span>Qarzlar Daftari (Nasiya)</span>
                 </button>
-                <button onclick="switchTab('inventory-tab')" id="tab-btn-inventory" class="border-transparent text-slate-500 hover:text-slate-700 border-b-2 py-4 px-1 text-sm font-semibold flex items-center gap-2">
-                    <i data-lucide="library" class="w-4 h-4"></i>
-                    <span>Kitoblar Ombori</span>
+                <button onclick="switchSellerTab('pos-stats-tab')" id="seller-tab-btn-stats" class="py-3 px-3 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center gap-2">
+                    <i data-lucide="bar-chart-2" class="w-4 h-4"></i>
+                    <span>Kassa Statistikasi</span>
                 </button>
-                <button onclick="switchTab('dashboard-tab')" id="tab-btn-dashboard" class="border-transparent text-slate-500 hover:text-slate-700 border-b-2 py-4 px-1 text-sm font-semibold flex items-center gap-2">
-                    <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
-                    <span>Statistika & Tahlil</span>
-                </button>
-            </nav>
+            </div>
+
+            <!-- Modal Body (Scrollable) -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-6">
+
+                <!-- 1. SCANNER & QUICK SALE SUB-TAB -->
+                <div id="pos-scan-tab" class="space-y-6">
+                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                        <div class="max-w-2xl mx-auto space-y-3 text-center">
+                            <span class="text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
+                                Skaner orqali kitobni aniqlash
+                            </span>
+                            <h4 class="text-xl font-extrabold text-slate-900">Shtrix-kod yoki QR-kodni skaner qiling</h4>
+                            <p class="text-xs text-slate-500">Skaner to'pponchasi orqali o'qing, kamerani yoqing yoki kodni qo'lda yozing:</p>
+
+                            <form onsubmit="handlePosScan(event)" class="relative flex items-center mt-3">
+                                <input type="text" id="pos-scan-input" autofocus
+                                       placeholder="Shtrix-kod (masalan 9789943001111) yoki QR JSON..."
+                                       class="w-full pl-11 pr-32 py-3.5 text-sm font-mono border-2 border-indigo-200 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 shadow-inner">
+                                <div class="absolute left-3.5 text-indigo-500">
+                                    <i data-lucide="scan" class="w-5 h-5"></i>
+                                </div>
+                                <div class="absolute right-2 flex items-center gap-1.5">
+                                    <button type="button" onclick="togglePosCamera()" class="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1">
+                                        <i data-lucide="camera" class="w-3.5 h-3.5 text-indigo-600"></i> Kamera
+                                    </button>
+                                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow">
+                                        Qidirish
+                                    </button>
+                                </div>
+                            </form>
+
+                            <!-- Camera Box -->
+                            <div id="pos-camera-wrapper" class="hidden mt-3 p-3 border-2 border-dashed border-indigo-300 rounded-2xl bg-indigo-50/50">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-xs font-bold text-indigo-900">Jonli Kamera Skaneri</span>
+                                    <button onclick="stopPosCamera()" class="text-xs text-rose-600 font-bold hover:underline">Yopish</button>
+                                </div>
+                                <div id="pos-camera-reader" class="mx-auto max-w-xs overflow-hidden rounded-xl bg-black"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Scan Result Card -->
+                    <div id="pos-scan-result" class="hidden">
+                        <!-- Loaded via JS -->
+                    </div>
+                </div>
+
+                <!-- 2. DEBTS SUB-TAB -->
+                <div id="pos-debts-tab" class="hidden space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <div>
+                            <h4 class="font-bold text-slate-900">Qarzlar va Nasiyalar Daftari</h4>
+                            <p class="text-xs text-slate-500">Mijozlarning to'lanmagan qarzlari va to'lovlar monitoringi</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="loadPosDebts('all')" class="px-3 py-1.5 text-xs font-bold rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100">Barchasi</button>
+                            <button onclick="loadPosDebts('overdue')" class="px-3 py-1.5 text-xs font-bold rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100">Muddati o'tganlar</button>
+                            <button onclick="loadPosDebts('PENDING')" class="px-3 py-1.5 text-xs font-bold rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100">Faol qarzlar</button>
+                        </div>
+                    </div>
+
+                    <div class="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                        <table class="w-full text-left text-xs text-slate-600">
+                            <thead class="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold border-b border-slate-200">
+                                <tr>
+                                    <th class="px-4 py-3">Raqami</th>
+                                    <th class="px-4 py-3">Mijoz</th>
+                                    <th class="px-4 py-3">Kitob</th>
+                                    <th class="px-4 py-3">Jami qarz</th>
+                                    <th class="px-4 py-3">To'langan</th>
+                                    <th class="px-4 py-3">Qolgan</th>
+                                    <th class="px-4 py-3">Muddat</th>
+                                    <th class="px-4 py-3">Holat</th>
+                                    <th class="px-4 py-3 text-center">Amal</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pos-debts-table-body" class="divide-y divide-slate-100">
+                                <tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">Yuklanmoqda...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 3. STATS SUB-TAB -->
+                <div id="pos-stats-tab" class="hidden space-y-6">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="pos-stats-cards">
+                        <!-- Loaded dynamically -->
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                            <h5 class="font-bold text-xs text-slate-900 mb-3 flex items-center gap-1.5">
+                                <i data-lucide="flame" class="w-4 h-4 text-amber-500"></i> Eng ko'p sotilgan kitoblar
+                            </h5>
+                            <div id="pos-top-books" class="space-y-2"></div>
+                        </div>
+
+                        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                            <h5 class="font-bold text-xs text-slate-900 mb-3 flex items-center gap-1.5">
+                                <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-500"></i> Omborda kam qolgan kitoblar
+                            </h5>
+                            <div id="pos-low-books" class="space-y-2"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
         </div>
     </div>
 
-    <!-- Main Content Container -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
 
-        <!-- ================= TAB 1: SCANNER & FAST SALE ================= -->
-        <section id="scanner-tab" class="space-y-6">
-            <!-- Search & Scan Bar -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <div class="max-w-3xl mx-auto text-center space-y-4">
-                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
-                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Barcode & QR Code Scanner API
-                    </span>
-                    <h2 class="text-2xl font-bold text-slate-900">Shtrix-kod yoki QR-kodni skaner qiling</h2>
-                    <p class="text-sm text-slate-500">
-                        Skaner to'pponchasi orqali o'qing, kameradan foydalaning yoki shtrix-kod raqamini qo'lda kiriting.
-                    </p>
-
-                    <form onsubmit="handleScanSubmit(event)" class="relative flex items-center mt-4">
-                        <div class="relative w-full">
-                            <input type="text" id="scan-input" autofocus
-                                placeholder="Shtrix-kod (masalan 9789943001111) yoki QR-kod JSON..."
-                                class="w-full pl-12 pr-32 py-4 text-base border-2 border-indigo-200 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 transition shadow-inner font-mono">
-                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                <i data-lucide="scan" class="w-6 h-6 text-indigo-500"></i>
-                            </div>
-                        </div>
-                        <div class="absolute right-2 flex items-center gap-2">
-                            <button type="button" onclick="toggleCameraScanner()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition">
-                                <i data-lucide="camera" class="w-4 h-4 text-indigo-600"></i>
-                                <span>Kamera</span>
-                            </button>
-                            <button type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl flex items-center gap-1.5 shadow transition">
-                                <span>Qidirish</span>
-                            </button>
-                        </div>
-                    </form>
-
-                    <!-- Camera Container (Hidden by default) -->
-                    <div id="camera-scanner-wrapper" class="hidden mt-4 p-4 border-2 border-dashed border-indigo-300 rounded-2xl bg-indigo-50/50">
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="text-xs font-bold text-indigo-900 flex items-center gap-1">
-                                <i data-lucide="video" class="w-4 h-4"></i> Jonli Kamera Skaneri
-                            </span>
-                            <button onclick="stopCameraScanner()" class="text-xs text-rose-600 hover:underline font-semibold">Yopish</button>
-                        </div>
-                        <div id="camera-reader" class="mx-auto max-w-sm overflow-hidden rounded-xl bg-black"></div>
-                    </div>
-
-                    <!-- Quick sample barcodes to test -->
-                    <div class="pt-2 text-left">
-                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sinash uchun namunaviy shtrix-kodlar:</p>
-                        <div class="flex flex-wrap gap-2">
-                            <button onclick="quickScan('9789943001111')" class="px-2.5 py-1 text-xs bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg border border-slate-200 font-mono transition">
-                                9789943001111 (O'tkan kunlar)
-                            </button>
-                            <button onclick="quickScan('9780132350884')" class="px-2.5 py-1 text-xs bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg border border-slate-200 font-mono transition">
-                                9780132350884 (Clean Code)
-                            </button>
-                            <button onclick="quickScan('9789943554444')" class="px-2.5 py-1 text-xs bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg border border-slate-200 font-mono transition">
-                                9789943554444 (Atom odatlar)
-                            </button>
-                            <button onclick="quickScan('9780134757599')" class="px-2.5 py-1 text-xs bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg border border-slate-200 font-mono transition">
-                                9780134757599 (Refactoring - 3 dona)
-                            </button>
-                        </div>
-                    </div>
-                </div>
+    <!-- ================= BOOK DETAIL MODAL ================= -->
+    <div id="book-detail-modal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl relative overflow-hidden animate-in fade-in border border-slate-200">
+            <button onclick="closeBookDetailModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-100">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <div id="book-detail-content">
+                <!-- Injected dynamically -->
             </div>
-
-            <!-- Scanned Result Container -->
-            <div id="scan-result-card" class="hidden">
-                <!-- Injected dynamically via JS -->
-            </div>
-        </section>
+        </div>
+    </div>
 
 
-        <!-- ================= TAB 2: DEBTS (QARZ DAFTARI) ================= -->
-        <section id="debts-tab" class="hidden space-y-6">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
-                        <i data-lucide="book-marked" class="w-5 h-5 text-indigo-600"></i>
-                        Qarzlar va Nasiyalar Daftari
-                    </h2>
-                    <p class="text-xs text-slate-500">Mijozlarning to'lanmagan qarzlari, muddatlari va to'lovlar monitoringi</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button onclick="loadDebts('all')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition">Barchasi</button>
-                    <button onclick="loadDebts('overdue')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 transition">Muddati o'tganlar</button>
-                    <button onclick="loadDebts('PENDING')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 transition">To'lanmaganlar</button>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm text-slate-600">
-                        <thead class="bg-slate-50 text-slate-500 uppercase text-xs border-b border-slate-200 font-semibold">
-                            <tr>
-                                <th class="px-6 py-4">Qarz raqami</th>
-                                <th class="px-6 py-4">Mijoz</th>
-                                <th class="px-6 py-4">Kitob(lar)</th>
-                                <th class="px-6 py-4">Jami qarz</th>
-                                <th class="px-6 py-4">To'langan</th>
-                                <th class="px-6 py-4">Qolgan qarz</th>
-                                <th class="px-6 py-4">Muddat</th>
-                                <th class="px-6 py-4">Holat</th>
-                                <th class="px-6 py-4 text-center">Amal</th>
-                            </tr>
-                        </thead>
-                        <tbody id="debts-table-body" class="divide-y divide-slate-100">
-                            <tr><td colspan="9" class="px-6 py-8 text-center text-slate-400">Yuklanmoqda...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-
-        <!-- ================= TAB 3: INVENTORY ================= -->
-        <section id="inventory-tab" class="hidden space-y-6">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
-                        <i data-lucide="layers" class="w-5 h-5 text-indigo-600"></i>
-                        Ombordagi Kitoblar Ro'yxati
-                    </h2>
-                    <p class="text-xs text-slate-500">Kitoblar qoldig'i, shtrix-kod va QR-kodlari</p>
-                </div>
-                <div class="w-full md:w-72">
-                    <input type="text" id="inventory-search" oninput="filterInventory(this.value)" placeholder="Qidirish (nomi, shtrix-kod)..."
-                        class="w-full px-4 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600">
-                </div>
-            </div>
-
-            <div id="books-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Dynamically loaded books -->
-            </div>
-        </section>
-
-
-        <!-- ================= TAB 4: DASHBOARD ================= -->
-        <section id="dashboard-tab" class="hidden space-y-6">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" id="stats-cards-container">
-                <!-- Stats loaded dynamically -->
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                        <i data-lucide="flame" class="w-4 h-4 text-amber-500"></i>
-                        Eng ko'p sotilgan kitoblar
-                    </h3>
-                    <div id="top-selling-container" class="space-y-3">
-                        <!-- Top books -->
-                    </div>
-                </div>
-
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-                        <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-500"></i>
-                        Omborda kam qolgan kitoblar
-                    </h3>
-                    <div id="low-stock-container" class="space-y-3">
-                        <!-- Low stock alerts -->
-                    </div>
-                </div>
-            </div>
-        </section>
-
-    </main>
-
-    <!-- Modal: Fast Sale (Kitob sotish / olish) -->
-    <div id="sale-modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in">
+    <!-- ================= SALE POPUP (KITOB OLISH / SOTISH) ================= -->
+    <div id="sale-modal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in border border-slate-200">
             <div class="flex justify-between items-center pb-3 border-b border-slate-100">
                 <h3 class="font-bold text-slate-900 flex items-center gap-2">
                     <i data-lucide="shopping-cart" class="w-5 h-5 text-indigo-600"></i>
                     Kitob Sotish (Kitob olish)
                 </h3>
-                <button onclick="closeSaleModal()" class="text-slate-400 hover:text-slate-600">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
+                <button onclick="closeSaleModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
             <form onsubmit="submitSale(event)" class="space-y-4">
                 <input type="hidden" id="sale-book-id">
-                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center justify-between">
+                <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex justify-between items-center">
                     <div>
-                        <div id="sale-book-title" class="font-semibold text-sm text-slate-900">Kitob nomi</div>
+                        <div id="sale-book-title" class="font-bold text-sm text-slate-900">Kitob nomi</div>
                         <div id="sale-book-price-label" class="text-xs text-slate-500">Narxi: 0 so'm</div>
                     </div>
-                    <div id="sale-book-stock-badge" class="px-2 py-1 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">10 dona bor</div>
+                    <span id="sale-book-stock-badge" class="px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-800">10 dona bor</span>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1">Necha dona?</label>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Necha dona?</label>
                     <input type="number" id="sale-quantity" value="1" min="1" oninput="calculateSaleTotal()" required
-                        class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-200">
+                        class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-200">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1">Mijoz (Ixtiyoriy)</label>
-                    <select id="sale-customer-id" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-200">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Mijoz (Ixtiyoriy)</label>
+                    <select id="sale-customer-id" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-200">
                         <option value="">-- Anonim xaridor --</option>
                         {% for c in customers %}
                         <option value="{{ c.id }}">{{ c.full_name }} ({{ c.phone }})</option>
@@ -277,8 +421,8 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1">To'lov turi</label>
-                    <select id="sale-payment-method" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-200">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">To'lov turi</label>
+                    <select id="sale-payment-method" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm">
                         <option value="CASH">Naqd pul</option>
                         <option value="CARD">Bank kartasi (Uzcard / Humo / Click / Payme)</option>
                         <option value="DEBT">Nasiya / Qarzga yozish</option>
@@ -286,46 +430,45 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1">Chegirma (so'm)</label>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Chegirma (so'm)</label>
                     <input type="number" id="sale-discount" value="0" min="0" oninput="calculateSaleTotal()"
-                        class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-200">
+                        class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm">
                 </div>
 
-                <div class="bg-indigo-50 p-4 rounded-xl flex justify-between items-center">
-                    <span class="text-xs font-semibold text-indigo-900">Jami to'lanadigan summa:</span>
-                    <span id="sale-final-total" class="text-lg font-bold text-indigo-700">0 so'm</span>
+                <div class="bg-indigo-50 p-4 rounded-2xl flex justify-between items-center border border-indigo-100">
+                    <span class="text-xs font-bold text-indigo-900">Jami to'lov:</span>
+                    <span id="sale-final-total" class="text-lg font-black text-indigo-700">0 so'm</span>
                 </div>
 
-                <div class="flex gap-3 pt-2">
-                    <button type="button" onclick="closeSaleModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl transition">Bekor qilish</button>
-                    <button type="submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow transition">Tasdiqlash</button>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="closeSaleModal()" class="flex-1 py-2.5 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl">Bekor qilish</button>
+                    <button type="submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow">Tasdiqlash</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Modal: Fast Debt (Qarzga olish) -->
-    <div id="debt-modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in">
+
+    <!-- ================= DEBT POPUP (NASIYA / IJARA) ================= -->
+    <div id="debt-modal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in border border-slate-200">
             <div class="flex justify-between items-center pb-3 border-b border-slate-100">
                 <h3 class="font-bold text-slate-900 flex items-center gap-2">
-                    <i data-lucide="book-up" class="w-5 h-5 text-amber-600"></i>
+                    <i data-lucide="hand-coins" class="w-5 h-5 text-amber-600"></i>
                     Kitobni Qarzga Berish (Nasiya / Ijara)
                 </h3>
-                <button onclick="closeDebtModal()" class="text-slate-400 hover:text-slate-600">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
+                <button onclick="closeDebtModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
             <form onsubmit="submitDebt(event)" class="space-y-4">
                 <input type="hidden" id="debt-book-id">
-                <div class="bg-amber-50 p-3 rounded-xl border border-amber-200">
-                    <div id="debt-book-title" class="font-semibold text-sm text-amber-950">Kitob nomi</div>
-                    <div id="debt-book-price-label" class="text-xs text-amber-800">Narxi: 0 so'm</div>
+                <div class="bg-amber-50 p-3 rounded-2xl border border-amber-200">
+                    <div id="debt-book-title" class="font-bold text-sm text-amber-950">Kitob nomi</div>
+                    <div id="debt-book-price-label" class="text-xs text-amber-800 font-semibold">Narxi: 0 so'm</div>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1">Mijozni tanlang *</label>
-                    <select id="debt-customer-id" required class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-amber-200">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Mijozni tanlang *</label>
+                    <select id="debt-customer-id" required class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm">
                         {% for c in customers %}
                         <option value="{{ c.id }}">{{ c.full_name }} ({{ c.phone }})</option>
                         {% endfor %}
@@ -333,119 +476,163 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1">Qarz turi</label>
-                    <select id="debt-borrow-type" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-amber-200">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Qarz turi</label>
+                    <select id="debt-borrow-type" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm">
                         <option value="PURCHASE_DEBT">Nasiyaga sotib olish (kitob mijozda qoladi, pulini to'laydi)</option>
                         <option value="RENT_BORROW">Ijaraga / O'qishga olish (kitobni o'qib qaytaradi)</option>
                     </select>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1">Qaytarish / To'lash muddati *</label>
-                    <input type="date" id="debt-due-date" required
-                        class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-amber-200">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Qaytarish / To'lash muddati *</label>
+                    <input type="date" id="debt-due-date" required class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1">Dastlabki to'lov (agar bergan bo'lsa)</label>
-                    <input type="number" id="debt-initial-payment" value="0" min="0"
-                        class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-amber-200">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Dastlabki to'lov (agar bergan bo'lsa)</label>
+                    <input type="number" id="debt-initial-payment" value="0" min="0" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1">Izoh / Kelishuv</label>
-                    <textarea id="debt-notes" rows="2" placeholder="Masalan: haftasiga 20 mingdan to'laydi..."
-                        class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-amber-200"></textarea>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Izoh / Kelishuv</label>
+                    <textarea id="debt-notes" rows="2" placeholder="Izoh..." class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm"></textarea>
                 </div>
 
-                <div class="flex gap-3 pt-2">
-                    <button type="button" onclick="closeDebtModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl transition">Bekor qilish</button>
-                    <button type="submit" class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-xl shadow transition">Qarzga berish</button>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="closeDebtModal()" class="flex-1 py-2.5 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl">Bekor qilish</button>
+                    <button type="submit" class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow">Qarzga berish</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Modal: Pay Debt (Qarz to'lash) -->
-    <div id="pay-debt-modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 animate-in fade-in">
+
+    <!-- ================= PAY DEBT MODAL ================= -->
+    <div id="pay-debt-modal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4 animate-in fade-in border border-slate-200">
             <div class="flex justify-between items-center pb-2 border-b border-slate-100">
                 <h3 class="font-bold text-slate-900">Qarz To'lovini Qabul Qilish</h3>
                 <button onclick="closePayModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
             <form onsubmit="submitDebtPayment(event)" class="space-y-4">
                 <input type="hidden" id="pay-debt-id">
-                <div class="bg-slate-50 p-3 rounded-xl">
+                <div class="bg-slate-50 p-3 rounded-2xl">
                     <div id="pay-customer-name" class="font-bold text-sm text-slate-900">Mijoz</div>
-                    <div id="pay-remaining-amount" class="text-xs text-rose-600 font-semibold mt-1">Qolgan qarz: 0 so'm</div>
+                    <div id="pay-remaining-amount" class="text-xs text-rose-600 font-bold mt-1">Qolgan qarz: 0 so'm</div>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1">To'lov summasi (so'm) *</label>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">To'lov summasi (so'm) *</label>
                     <input type="number" id="pay-amount" required min="1" step="any"
-                        class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-200">
+                        class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 mb-1">To'lov turi</label>
-                    <select id="pay-method" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">To'lov turi</label>
+                    <select id="pay-method" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm">
                         <option value="CASH">Naqd pul</option>
                         <option value="CARD">Bank kartasi (Uzcard / Humo / Click)</option>
                     </select>
                 </div>
 
-                <div class="flex gap-3 pt-2">
-                    <button type="button" onclick="closePayModal()" class="flex-1 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl">Bekor qilish</button>
-                    <button type="submit" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl">To'lovni kiritish</button>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="closePayModal()" class="flex-1 py-2 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl">Bekor qilish</button>
+                    <button type="submit" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl">To'lovni kiritish</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Scripts -->
+
+    <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // Init Lucide icons
         lucide.createIcons();
 
-        let currentScannedBook = null;
-        let html5QrCode = null;
+        let activeCategory = 'ALL';
+        let posQrScanner = null;
+        let selectedBookForAction = null;
 
-        // Switch Tabs
-        function switchTab(tabId) {
-            ['scanner-tab', 'debts-tab', 'inventory-tab', 'dashboard-tab'].forEach(id => {
-                document.getElementById(id).classList.add('hidden');
-                document.getElementById('tab-btn-' + id.replace('-tab', '')).classList.remove('border-indigo-600', 'text-indigo-600');
-                document.getElementById('tab-btn-' + id.replace('-tab', '')).classList.add('border-transparent', 'text-slate-500');
+        // Catalog Search & Filter
+        function handleCatalogSearch(query) {
+            const q = query.trim().toLowerCase();
+            const cards = document.querySelectorAll('.book-card');
+            let visibleCount = 0;
+
+            cards.forEach(card => {
+                const title = card.getAttribute('data-title');
+                const author = card.getAttribute('data-author');
+                const barcode = card.getAttribute('data-barcode');
+                const category = card.getAttribute('data-category');
+
+                const matchesSearch = !q || title.includes(q) || author.includes(q) || barcode.includes(q);
+                const matchesCat = (activeCategory === 'ALL') || (category === activeCategory);
+
+                if (matchesSearch && matchesCat) {
+                    card.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    card.classList.add('hidden');
+                }
             });
-            document.getElementById(tabId).classList.remove('hidden');
-            const activeBtn = document.getElementById('tab-btn-' + tabId.replace('-tab', ''));
-            activeBtn.classList.add('border-indigo-600', 'text-indigo-600');
-            activeBtn.classList.remove('border-transparent', 'text-slate-500');
+            document.getElementById('showing-count').innerText = `Jami: ${visibleCount} ta kitob ko'rsatilmoqda`;
+        }
 
-            if (tabId === 'debts-tab') loadDebts('all');
-            if (tabId === 'inventory-tab') loadInventory();
-            if (tabId === 'dashboard-tab') loadDashboardStats();
+        function filterCategory(catName) {
+            activeCategory = catName;
+            document.querySelectorAll('.category-pill').forEach(btn => {
+                btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-md');
+                btn.classList.add('bg-slate-800/80', 'text-slate-300');
+            });
+            event.target.classList.add('bg-indigo-600', 'text-white', 'shadow-md');
+            event.target.classList.remove('bg-slate-800/80', 'text-slate-300');
+
+            handleCatalogSearch(document.getElementById('catalog-search').value);
+        }
+
+        // SELLER MODAL (SOTUVCHI PANELI)
+        function openSellerModal() {
+            document.getElementById('seller-modal').classList.remove('hidden');
+            switchSellerTab('pos-scan-tab');
+            setTimeout(() => {
+                document.getElementById('pos-scan-input').focus();
+            }, 200);
+        }
+
+        function closeSellerModal() {
+            document.getElementById('seller-modal').classList.add('hidden');
+            stopPosCamera();
+        }
+
+        function switchSellerTab(tabId) {
+            ['pos-scan-tab', 'pos-debts-tab', 'pos-stats-tab'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+                const btnKey = id.replace('pos-', '').replace('-tab', '');
+                document.getElementById('seller-tab-btn-' + btnKey).classList.remove('border-indigo-600', 'text-indigo-600');
+                document.getElementById('seller-tab-btn-' + btnKey).classList.add('border-transparent', 'text-slate-500');
+            });
+
+            document.getElementById(tabId).classList.remove('hidden');
+            const activeKey = tabId.replace('pos-', '').replace('-tab', '');
+            document.getElementById('seller-tab-btn-' + activeKey).classList.add('border-indigo-600', 'text-indigo-600');
+            document.getElementById('seller-tab-btn-' + activeKey).classList.remove('border-transparent', 'text-slate-500');
+
+            if (tabId === 'pos-debts-tab') loadPosDebts('all');
+            if (tabId === 'pos-stats-tab') loadPosStats();
             lucide.createIcons();
         }
 
-        // Quick Scan helper
-        function quickScan(code) {
-            document.getElementById('scan-input').value = code;
-            handleScanSubmit(new Event('submit'));
-        }
-
-        // Submit Scan
-        async function handleScanSubmit(e) {
+        // POS SCANNER
+        async function handlePosScan(e) {
             if (e) e.preventDefault();
-            const code = document.getElementById('scan-input').value.trim();
+            const code = document.getElementById('pos-scan-input').value.trim();
             if (!code) return;
 
-            const resultContainer = document.getElementById('scan-result-card');
-            resultContainer.classList.remove('hidden');
-            resultContainer.innerHTML = `
-                <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center">
-                    <div class="animate-spin inline-block w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full mb-3"></div>
-                    <p class="text-sm font-semibold text-slate-600">Shtrix-kod tekshirilmoqda (${code})...</p>
+            const resCont = document.getElementById('pos-scan-result');
+            resCont.classList.remove('hidden');
+            resCont.innerHTML = `
+                <div class="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200">
+                    <div class="animate-spin inline-block w-6 h-6 border-4 border-indigo-600 border-t-transparent rounded-full mb-2"></div>
+                    <p class="text-xs font-semibold text-slate-600">Skaner qilinmoqda (${code})...</p>
                 </div>
             `;
 
@@ -454,54 +641,40 @@
                 const data = await res.json();
 
                 if (!res.ok || !data.found) {
-                    resultContainer.innerHTML = `
-                        <div class="bg-rose-50 border border-rose-200 p-6 rounded-2xl text-center space-y-2">
-                            <i data-lucide="alert-circle" class="w-10 h-10 text-rose-500 mx-auto"></i>
-                            <h3 class="text-base font-bold text-rose-800">Kitob topilmadi</h3>
-                            <p class="text-xs text-rose-600">${data.message || 'Bunday shtrix-kod yoki QR-kod bazada mavjud emas.'}</p>
+                    resCont.innerHTML = `
+                        <div class="p-6 text-center bg-rose-50 border border-rose-200 rounded-2xl text-rose-700">
+                            <i data-lucide="alert-circle" class="w-8 h-8 mx-auto mb-2 text-rose-500"></i>
+                            <h5 class="font-bold text-sm">Kitob topilmadi</h5>
+                            <p class="text-xs">${data.message || 'Bunday shtrix-kod yoki QR-kod bazada mavjud emas.'}</p>
                         </div>
                     `;
                     lucide.createIcons();
                     return;
                 }
 
-                currentScannedBook = data.book;
-                renderScannedBookCard(data);
+                renderPosScannedCard(data);
             } catch (err) {
-                resultContainer.innerHTML = `<div class="bg-rose-50 text-rose-700 p-4 rounded-xl text-xs">Tarmoq xatosi: ${err.message}</div>`;
+                resCont.innerHTML = `<div class="p-4 bg-rose-50 text-rose-700 rounded-xl text-xs">Xatolik: ${err.message}</div>`;
             }
         }
 
-        // Render Book Card
-        function renderScannedBookCard(data) {
+        function renderPosScannedCard(data) {
             const b = data.book;
             const stock = data.stock_status;
-            const container = document.getElementById('scan-result-card');
-
-            let stockBadgeClass = stock.badge === 'AVAILABLE' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
-                                  stock.badge === 'LOW_STOCK' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-rose-100 text-rose-800 border-rose-200';
+            const cont = document.getElementById('pos-scan-result');
 
             let borrowersHtml = '';
             if (b.active_borrowers && b.active_borrowers.length > 0) {
                 borrowersHtml = `
-                    <div class="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-200">
-                        <h4 class="text-xs font-bold text-amber-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                            <i data-lucide="user-x" class="w-4 h-4 text-amber-700"></i> Hozirda qarzga olgan mijozlar (${b.active_borrowers.length} kishi):
-                        </h4>
-                        <div class="space-y-2">
+                    <div class="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                        <span class="text-[11px] font-bold text-amber-900 block mb-1">
+                            ⚠️ Hozirda qarzda olganlar (${b.active_borrowers.length} kishi):
+                        </span>
+                        <div class="space-y-1">
                             ${b.active_borrowers.map(borrower => `
-                                <div class="flex justify-between items-center text-xs bg-white p-2.5 rounded-lg border border-amber-100">
-                                    <div>
-                                        <span class="font-bold text-slate-800">${borrower.customer_name}</span>
-                                        <span class="text-slate-400">(${borrower.customer_phone})</span>
-                                        <div class="text-[11px] text-slate-500">${borrower.borrow_type} • ${borrower.quantity} dona</div>
-                                    </div>
-                                    <div class="text-right">
-                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${borrower.is_overdue ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-700'}">
-                                            ${borrower.is_overdue ? 'Muddati o\'tgan!' : 'Faol'}
-                                        </span>
-                                        <div class="text-[10px] text-slate-400 mt-0.5">Muddati: ${new Date(borrower.due_date).toLocaleDateString()}</div>
-                                    </div>
+                                <div class="text-[11px] text-slate-700 flex justify-between bg-white px-2 py-1 rounded">
+                                    <span>${borrower.customer_name} (${borrower.customer_phone})</span>
+                                    <span class="font-bold text-rose-600">${borrower.borrow_type}</span>
                                 </div>
                             `).join('')}
                         </div>
@@ -509,74 +682,38 @@
                 `;
             }
 
-            container.innerHTML = `
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-12 gap-6">
-                    <!-- Left: Book Cover & QR -->
-                    <div class="md:col-span-4 flex flex-col items-center text-center space-y-4 border-b md:border-b-0 md:border-r border-slate-100 pb-6 md:pb-0 md:pr-6">
-                        <div class="w-36 h-48 bg-slate-100 rounded-xl flex items-center justify-center overflow-hidden shadow-md border border-slate-200">
-                            ${b.cover_image ? `<img src="${b.cover_image}" class="w-full h-full object-cover">` : `<i data-lucide="book" class="w-16 h-16 text-slate-300"></i>`}
-                        </div>
-                        <div class="w-full space-y-2">
-                            ${b.barcode_image ? `
-                                <div class="p-2 bg-slate-50 rounded-lg border border-slate-200">
-                                    <img src="${b.barcode_image}" class="h-10 mx-auto object-contain">
-                                    <span class="text-[11px] font-mono text-slate-500 block mt-1">${b.barcode}</span>
-                                </div>
-                            ` : ''}
-                            ${b.qr_code_image ? `
-                                <div class="p-2 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-center gap-2">
-                                    <img src="${b.qr_code_image}" class="w-12 h-12">
-                                    <div class="text-left text-[10px] text-slate-500">
-                                        <span class="font-bold text-slate-700 block">QR-kod</span>
-                                        <span>Mobil skaner uchun</span>
-                                    </div>
-                                </div>
-                            ` : ''}
-                        </div>
+            cont.innerHTML = `
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-5">
+                    <div class="w-28 h-36 bg-slate-100 rounded-xl overflow-hidden shrink-0 mx-auto md:mx-0">
+                        ${b.cover_image ? `<img src="${b.cover_image}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-slate-400"><i data-lucide="book" class="w-8 h-8"></i></div>`}
                     </div>
-
-                    <!-- Right: Info & Actions -->
-                    <div class="md:col-span-8 flex flex-col justify-between space-y-4">
+                    <div class="flex-1 flex flex-col justify-between">
                         <div>
-                            <div class="flex flex-wrap items-center justify-between gap-2">
-                                <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${stockBadgeClass} border">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h4 class="font-bold text-base text-slate-900">${b.title}</h4>
+                                    <p class="text-xs text-slate-500">${b.author ? b.author.name : '-'} • ${b.category ? b.category.name : '-'}</p>
+                                </div>
+                                <span class="px-2.5 py-1 rounded-full text-xs font-bold ${b.stock_quantity > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
                                     ${stock.message}
                                 </span>
-                                <span class="text-xs text-slate-400 font-mono">ID: #${b.id} | Polka: <strong class="text-slate-700">${b.shelf_location || 'Belgilanmagan'}</strong></span>
                             </div>
 
-                            <h3 class="text-2xl font-bold text-slate-900 mt-2">${b.title}</h3>
-                            <p class="text-sm text-slate-500 font-medium">Muallif: <span class="text-indigo-600 font-semibold">${b.author ? b.author.name : 'Noma\'lum'}</span> | Kategoriya: <span class="text-slate-700">${b.category ? b.category.name : '-'}</span></p>
-
-                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 my-4">
-                                <div class="p-3 bg-slate-50 rounded-xl">
-                                    <span class="text-[11px] text-slate-400 block font-medium">Sotish narxi</span>
-                                    <span class="text-lg font-bold text-slate-900">${Number(b.price).toLocaleString()} so'm</span>
-                                </div>
-                                <div class="p-3 bg-slate-50 rounded-xl">
-                                    <span class="text-[11px] text-slate-400 block font-medium">Ombordagi qoldiq</span>
-                                    <span class="text-lg font-bold ${b.stock_quantity > 0 ? 'text-emerald-600' : 'text-rose-600'}">${b.stock_quantity} dona</span>
-                                </div>
-                                <div class="p-3 bg-slate-50 rounded-xl">
-                                    <span class="text-[11px] text-slate-400 block font-medium">Jami sotilgan</span>
-                                    <span class="text-lg font-bold text-indigo-600">${data.analytics.total_sold_count} dona</span>
-                                </div>
+                            <div class="flex items-center gap-4 my-2 text-xs">
+                                <span>Narxi: <strong class="text-slate-900 text-sm">${Number(b.price).toLocaleString()} so'm</strong></span>
+                                <span>Polka: <strong class="text-indigo-600 font-mono">${b.shelf_location || '-'}</strong></span>
+                                <span>Shtrix-kod: <strong class="text-slate-600 font-mono">${b.barcode}</strong></span>
                             </div>
-
-                            ${b.description ? `<p class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">${b.description}</p>` : ''}
 
                             ${borrowersHtml}
                         </div>
 
-                        <!-- Action Buttons -->
-                        <div class="flex flex-wrap gap-3 pt-4 border-t border-slate-100">
-                            <button onclick="openSaleModal()" class="flex-1 min-w-[140px] py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-sm transition">
-                                <i data-lucide="shopping-bag" class="w-4 h-4"></i>
-                                <span>Kitobni Sotish</span>
+                        <div class="flex gap-2 pt-3 border-t border-slate-100 mt-2">
+                            <button onclick="directSale(${b.id}, '${b.title.replace(/'/g, "\\'")}', ${b.price}, ${b.stock_quantity})" class="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow flex items-center justify-center gap-1">
+                                <i data-lucide="shopping-bag" class="w-3.5 h-3.5"></i> Xarid (Sotish)
                             </button>
-                            <button onclick="openDebtModal()" class="flex-1 min-w-[140px] py-3 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-sm transition">
-                                <i data-lucide="hand-coins" class="w-4 h-4"></i>
-                                <span>Qarzga / Nasiyaga Berish</span>
+                            <button onclick="directDebt(${b.id}, '${b.title.replace(/'/g, "\\'")}', ${b.price}, ${b.stock_quantity})" class="flex-1 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow flex items-center justify-center gap-1">
+                                <i data-lucide="hand-coins" class="w-3.5 h-3.5"></i> Nasiya (Qarz)
                             </button>
                         </div>
                     </div>
@@ -585,67 +722,149 @@
             lucide.createIcons();
         }
 
-        // Camera Scanner via HTML5-QRCode
-        function toggleCameraScanner() {
-            const wrapper = document.getElementById('camera-scanner-wrapper');
-            if (wrapper.classList.contains('hidden')) {
-                wrapper.classList.remove('hidden');
-                html5QrCode = new Html5Qrcode("camera-reader");
-                html5QrCode.start(
+        // Camera for POS
+        function togglePosCamera() {
+            const wrap = document.getElementById('pos-camera-wrapper');
+            if (wrap.classList.contains('hidden')) {
+                wrap.classList.remove('hidden');
+                posQrScanner = new Html5Qrcode("pos-camera-reader");
+                posQrScanner.start(
                     { facingMode: "environment" },
-                    { fps: 10, qrbox: { width: 250, height: 180 } },
-                    (decodedText) => {
-                        stopCameraScanner();
-                        document.getElementById('scan-input').value = decodedText;
-                        handleScanSubmit(new Event('submit'));
+                    { fps: 10, qrbox: { width: 220, height: 160 } },
+                    (decoded) => {
+                        stopPosCamera();
+                        document.getElementById('pos-scan-input').value = decoded;
+                        handlePosScan(new Event('submit'));
                     },
-                    (error) => {}
+                    () => {}
                 ).catch(err => {
-                    Swal.fire('Kamera xatosi', 'Kameraga ulanib bo\'lmadi: ' + err, 'error');
-                    wrapper.classList.add('hidden');
+                    Swal.fire('Kamera xatosi', err, 'error');
+                    wrap.classList.add('hidden');
                 });
             } else {
-                stopCameraScanner();
+                stopPosCamera();
             }
         }
 
-        function stopCameraScanner() {
-            if (html5QrCode) {
-                html5QrCode.stop().then(() => {
-                    html5QrCode.clear();
-                    html5QrCode = null;
-                }).catch(err => {});
+        function stopPosCamera() {
+            if (posQrScanner) {
+                posQrScanner.stop().then(() => {
+                    posQrScanner.clear();
+                    posQrScanner = null;
+                }).catch(() => {});
             }
-            document.getElementById('camera-scanner-wrapper').classList.add('hidden');
+            document.getElementById('pos-camera-wrapper').classList.add('hidden');
         }
 
-        // Sale Modal Logic
-        function openSaleModal() {
-            if (!currentScannedBook) return;
-            document.getElementById('sale-book-id').value = currentScannedBook.id;
-            document.getElementById('sale-book-title').innerText = currentScannedBook.title;
-            document.getElementById('sale-book-price-label').innerText = `Dona narxi: ${Number(currentScannedBook.price).toLocaleString()} so'm`;
-            document.getElementById('sale-book-stock-badge').innerText = `${currentScannedBook.stock_quantity} dona mavjud`;
+        // BOOK DETAIL MODAL
+        async function openBookDetailModal(bookId) {
+            const cont = document.getElementById('book-detail-content');
+            cont.innerHTML = `<div class="p-8 text-center text-slate-400">Kitob yuklanmoqda...</div>`;
+            document.getElementById('book-detail-modal').classList.remove('hidden');
+
+            try {
+                const res = await fetch(`/api/books/${bookId}/`);
+                const b = await res.json();
+
+                cont.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+                        <div class="md:col-span-5 flex flex-col items-center text-center space-y-3">
+                            <div class="w-40 h-56 bg-slate-100 rounded-2xl overflow-hidden shadow-md border border-slate-200">
+                                ${b.cover_image ? `<img src="${b.cover_image}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-slate-400"><i data-lucide="book" class="w-12 h-12"></i></div>`}
+                            </div>
+                            ${b.barcode_image ? `
+                                <div class="w-full p-2 bg-slate-50 rounded-xl border border-slate-200">
+                                    <img src="${b.barcode_image}" class="h-8 mx-auto object-contain">
+                                    <span class="text-[10px] font-mono text-slate-500 block mt-1">${b.barcode}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="md:col-span-7 flex flex-col justify-between space-y-3">
+                            <div>
+                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${b.stock_quantity > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                                    ${b.stock_quantity > 0 ? b.stock_quantity + ' dona bor' : 'Tugagan'}
+                                </span>
+                                <h3 class="text-xl font-bold text-slate-900 mt-2">${b.title}</h3>
+                                <p class="text-xs text-slate-500 font-semibold">${b.author ? b.author.name : 'Noma\'lum'} • ${b.category ? b.category.name : '-'}</p>
+
+                                <div class="grid grid-cols-2 gap-2 my-3 text-xs">
+                                    <div class="p-2.5 bg-slate-50 rounded-xl">
+                                        <span class="text-slate-400 block text-[10px]">Sotish narxi</span>
+                                        <strong class="text-slate-900 text-sm">${Number(b.price).toLocaleString()} so'm</strong>
+                                    </div>
+                                    <div class="p-2.5 bg-slate-50 rounded-xl">
+                                        <span class="text-slate-400 block text-[10px]">Polkadagi o'rni</span>
+                                        <strong class="text-indigo-600 font-mono text-sm">${b.shelf_location || '-'}</strong>
+                                    </div>
+                                </div>
+
+                                <p class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100 line-clamp-3">
+                                    ${b.description || 'Kitob haqida qo\'shimcha ma\'lumot kiritilmagan.'}
+                                </p>
+                            </div>
+
+                            <div class="flex gap-2 pt-2 border-t border-slate-100">
+                                <button onclick="closeBookDetailModal(); directSale(${b.id}, '${b.title.replace(/'/g, "\\'")}', ${b.price}, ${b.stock_quantity})" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow">
+                                    Sotish
+                                </button>
+                                <button onclick="closeBookDetailModal(); directDebt(${b.id}, '${b.title.replace(/'/g, "\\'")}', ${b.price}, ${b.stock_quantity})" class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow">
+                                    Nasiyaga berish
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                lucide.createIcons();
+            } catch (err) {
+                cont.innerHTML = `<div class="p-4 text-rose-500 text-xs">Xatolik: ${err.message}</div>`;
+            }
+        }
+
+        function closeBookDetailModal() {
+            document.getElementById('book-detail-modal').classList.add('hidden');
+        }
+
+        // DIRECT ACTIONS FROM CATALOG
+        function directSale(bookId, title, price, stock) {
+            selectedBookForAction = { id: bookId, title: title, price: price, stock: stock };
+            document.getElementById('sale-book-id').value = bookId;
+            document.getElementById('sale-book-title').innerText = title;
+            document.getElementById('sale-book-price-label').innerText = `Dona narxi: ${Number(price).toLocaleString()} so'm`;
+            document.getElementById('sale-book-stock-badge').innerText = `${stock} dona mavjud`;
             document.getElementById('sale-quantity').value = 1;
-            document.getElementById('sale-quantity').max = currentScannedBook.stock_quantity;
+            document.getElementById('sale-quantity').max = stock;
             document.getElementById('sale-discount').value = 0;
             calculateSaleTotal();
             document.getElementById('sale-modal').classList.remove('hidden');
         }
 
-        function closeSaleModal() {
-            document.getElementById('sale-modal').classList.add('hidden');
+        function directDebt(bookId, title, price, stock) {
+            selectedBookForAction = { id: bookId, title: title, price: price, stock: stock };
+            document.getElementById('debt-book-id').value = bookId;
+            document.getElementById('debt-book-title').innerText = title;
+            document.getElementById('debt-book-price-label').innerText = `Narxi: ${Number(price).toLocaleString()} so'm`;
+
+            const d = new Date();
+            d.setDate(d.getDate() + 30);
+            document.getElementById('debt-due-date').value = d.toISOString().split('T')[0];
+            document.getElementById('debt-initial-payment').value = 0;
+            document.getElementById('debt-notes').value = '';
+            document.getElementById('debt-modal').classList.remove('hidden');
         }
 
+        function closeSaleModal() { document.getElementById('sale-modal').classList.add('hidden'); }
+        function closeDebtModal() { document.getElementById('debt-modal').classList.add('hidden'); }
+
         function calculateSaleTotal() {
-            if (!currentScannedBook) return;
+            if (!selectedBookForAction) return;
             const qty = Number(document.getElementById('sale-quantity').value) || 1;
-            const discount = Number(document.getElementById('sale-discount').value) || 0;
-            const price = Number(currentScannedBook.price) || 0;
-            const total = Math.max(0, (qty * price) - discount);
+            const disc = Number(document.getElementById('sale-discount').value) || 0;
+            const price = Number(selectedBookForAction.price) || 0;
+            const total = Math.max(0, (qty * price) - disc);
             document.getElementById('sale-final-total').innerText = `${total.toLocaleString()} so'm`;
         }
 
+        // SUBMIT SALE
         async function submitSale(e) {
             e.preventDefault();
             const bookId = Number(document.getElementById('sale-book-id').value);
@@ -673,39 +892,18 @@
                     Swal.fire({
                         icon: 'success',
                         title: 'Xarid muvaffaqiyatli amalga oshirildi!',
-                        text: `Chek raqami: ${data.sale_number} | To'lov: ${Number(data.final_amount).toLocaleString()} so'm`
-                    });
-                    // Refresh current book
-                    handleScanSubmit(null);
+                        text: `Chek raqami: ${data.sale_number} | Jami: ${Number(data.final_amount).toLocaleString()} so'm`,
+                        confirmButtonText: 'Tushunarli'
+                    }).then(() => location.reload());
                 } else {
-                    const errMsg = data.items || data.detail || JSON.stringify(data);
-                    Swal.fire('Xatolik', String(errMsg), 'error');
+                    Swal.fire('Xatolik', data.items || data.detail || JSON.stringify(data), 'error');
                 }
             } catch (err) {
                 Swal.fire('Tarmoq xatosi', err.message, 'error');
             }
         }
 
-        // Debt Modal Logic
-        function openDebtModal() {
-            if (!currentScannedBook) return;
-            document.getElementById('debt-book-id').value = currentScannedBook.id;
-            document.getElementById('debt-book-title').innerText = currentScannedBook.title;
-            document.getElementById('debt-book-price-label').innerText = `Narxi: ${Number(currentScannedBook.price).toLocaleString()} so'm`;
-            
-            // Default 30 days due date
-            const d = new Date();
-            d.setDate(d.getDate() + 30);
-            document.getElementById('debt-due-date').value = d.toISOString().split('T')[0];
-            document.getElementById('debt-initial-payment').value = 0;
-            document.getElementById('debt-notes').value = '';
-            document.getElementById('debt-modal').classList.remove('hidden');
-        }
-
-        function closeDebtModal() {
-            document.getElementById('debt-modal').classList.add('hidden');
-        }
-
+        // SUBMIT DEBT
         async function submitDebt(e) {
             e.preventDefault();
             const bookId = Number(document.getElementById('debt-book-id').value);
@@ -735,23 +933,22 @@
                     closeDebtModal();
                     Swal.fire({
                         icon: 'success',
-                        title: 'Kitob qarzga rasmiylashtirildi!',
-                        text: `Hujjat raqami: ${data.debt_number} | Qolgan qarz: ${Number(data.remaining_debt_amount).toLocaleString()} so'm`
-                    });
-                    handleScanSubmit(null);
+                        title: 'Kitob qarzga berildi!',
+                        text: `Hujjat: ${data.debt_number} | Qolgan qarz: ${Number(data.remaining_debt_amount).toLocaleString()} so'm`,
+                        confirmButtonText: 'Tushunarli'
+                    }).then(() => location.reload());
                 } else {
-                    const err = data.items || data.detail || JSON.stringify(data);
-                    Swal.fire('Xatolik', String(err), 'error');
+                    Swal.fire('Xatolik', data.items || data.detail || JSON.stringify(data), 'error');
                 }
             } catch (err) {
                 Swal.fire('Tarmoq xatosi', err.message, 'error');
             }
         }
 
-        // Debts Table Loader
-        async function loadDebts(filterType) {
-            const tbody = document.getElementById('debts-table-body');
-            tbody.innerHTML = `<tr><td colspan="9" class="px-6 py-8 text-center text-slate-400">Yuklanmoqda...</td></tr>`;
+        // POS DEBTS TABLE
+        async function loadPosDebts(filterType) {
+            const tbody = document.getElementById('pos-debts-table-body');
+            tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">Yuklanmoqda...</td></tr>`;
 
             let url = '/api/debts/';
             if (filterType === 'overdue') url = '/api/debts/overdue/';
@@ -763,7 +960,7 @@
                 const list = data.results || data;
 
                 if (!list || list.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="9" class="px-6 py-8 text-center text-slate-400">Qarzlar mavjud emas.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">Qarzlar mavjud emas.</td></tr>`;
                     return;
                 }
 
@@ -776,41 +973,37 @@
 
                     return `
                         <tr class="hover:bg-slate-50 transition">
-                            <td class="px-6 py-4 font-mono font-bold text-indigo-700">${d.debt_number}</td>
-                            <td class="px-6 py-4">
+                            <td class="px-4 py-3 font-mono font-bold text-indigo-700">${d.debt_number}</td>
+                            <td class="px-4 py-3">
                                 <div class="font-bold text-slate-800">${d.customer.full_name}</div>
-                                <div class="text-xs text-slate-400">${d.customer.phone}</div>
+                                <div class="text-[10px] text-slate-400">${d.customer.phone}</div>
                             </td>
-                            <td class="px-6 py-4 text-xs text-slate-700 max-w-xs truncate">${booksList}</td>
-                            <td class="px-6 py-4 font-semibold">${Number(d.total_debt_amount).toLocaleString()} so'm</td>
-                            <td class="px-6 py-4 text-emerald-600 font-semibold">${Number(d.paid_amount).toLocaleString()} so'm</td>
-                            <td class="px-6 py-4 text-rose-600 font-bold">${Number(d.remaining_debt_amount).toLocaleString()} so'm</td>
-                            <td class="px-6 py-4 text-xs text-slate-500">${new Date(d.due_date).toLocaleDateString()}</td>
-                            <td class="px-6 py-4">
-                                <span class="px-2 py-1 rounded text-xs font-bold ${statusBadge}">
-                                    ${d.status_display}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 text-center">
+                            <td class="px-4 py-3 text-slate-700 max-w-xs truncate">${booksList}</td>
+                            <td class="px-4 py-3 font-semibold">${Number(d.total_debt_amount).toLocaleString()} so'm</td>
+                            <td class="px-4 py-3 text-emerald-600 font-semibold">${Number(d.paid_amount).toLocaleString()} so'm</td>
+                            <td class="px-4 py-3 text-rose-600 font-bold">${Number(d.remaining_debt_amount).toLocaleString()} so'm</td>
+                            <td class="px-4 py-3 text-slate-500">${new Date(d.due_date).toLocaleDateString()}</td>
+                            <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${statusBadge}">${d.status_display}</span></td>
+                            <td class="px-4 py-3 text-center">
                                 ${Number(d.remaining_debt_amount) > 0 ? `
-                                    <button onclick="openPayModal(${d.id}, '${d.customer.full_name}', ${d.remaining_debt_amount})" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm">
+                                    <button onclick="openPayModal(${d.id}, '${d.customer.full_name}', ${d.remaining_debt_amount})" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-sm">
                                         To'lash
                                     </button>
                                 ` : (d.borrow_type === 'RENT_BORROW' && d.status !== 'RETURNED' ? `
-                                    <button onclick="returnRentBook(${d.id})" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm">
+                                    <button onclick="returnRentBook(${d.id})" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm">
                                         Qaytarish
                                     </button>
-                                ` : `<span class="text-xs text-emerald-600 font-semibold">Yopilgan</span>`)}
+                                ` : `<span class="text-emerald-600 font-bold">Yopilgan</span>`)}
                             </td>
                         </tr>
                     `;
                 }).join('');
             } catch (err) {
-                tbody.innerHTML = `<tr><td colspan="9" class="px-6 py-8 text-center text-rose-500">Xatolik: ${err.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-center text-rose-500">Xatolik: ${err.message}</td></tr>`;
             }
         }
 
-        // Pay Modal Logic
+        // PAY DEBT
         function openPayModal(debtId, customerName, remaining) {
             document.getElementById('pay-debt-id').value = debtId;
             document.getElementById('pay-customer-name').innerText = `Mijoz: ${customerName}`;
@@ -820,9 +1013,7 @@
             document.getElementById('pay-debt-modal').classList.remove('hidden');
         }
 
-        function closePayModal() {
-            document.getElementById('pay-debt-modal').classList.add('hidden');
-        }
+        function closePayModal() { document.getElementById('pay-debt-modal').classList.add('hidden'); }
 
         async function submitDebtPayment(e) {
             e.preventDefault();
@@ -840,7 +1031,7 @@
                 if (res.ok) {
                     closePayModal();
                     Swal.fire('To\'lov qabul qilindi!', data.message, 'success');
-                    loadDebts('all');
+                    loadPosDebts('all');
                 } else {
                     Swal.fire('Xatolik', data.detail || JSON.stringify(data), 'error');
                 }
@@ -852,11 +1043,11 @@
         async function returnRentBook(debtId) {
             const confirmed = await Swal.fire({
                 title: 'Kitob qaytarildimi?',
-                text: 'Kitob ombordagi soniga qayta qo\'shiladi va qarz yopiladi.',
+                text: 'Kitob ombor zaxirasiga qaytariladi va qarz yopiladi.',
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonText: 'Ha, qaytarildi',
-                cancelButtonText: 'Yo\'q'
+                cancelButtonText: 'Bekor qilish'
             });
 
             if (confirmed.isConfirmed) {
@@ -864,170 +1055,73 @@
                 const data = await res.json();
                 if (res.ok) {
                     Swal.fire('Bajarildi!', data.message, 'success');
-                    loadDebts('all');
+                    loadPosDebts('all');
                 } else {
-                    Swal.fire('Xatolik', data.detail || 'Xatolik yuz berdi', 'error');
+                    Swal.fire('Xatolik', data.detail || 'Xatolik', 'error');
                 }
             }
         }
 
-        // Inventory Loader
-        let allBooksList = [];
-        async function loadInventory() {
-            const grid = document.getElementById('books-grid');
-            grid.innerHTML = `<div class="col-span-3 text-center py-8 text-slate-400">Kitoblar yuklanmoqda...</div>`;
-            try {
-                const res = await fetch('/api/books/');
-                const data = await res.json();
-                allBooksList = data.results || data;
-                renderBooksGrid(allBooksList);
-            } catch (err) {
-                grid.innerHTML = `<div class="col-span-3 text-rose-500 text-center">Xatolik: ${err.message}</div>`;
-            }
-        }
-
-        function filterInventory(q) {
-            const filtered = allBooksList.filter(b => 
-                b.title.toLowerCase().includes(q.toLowerCase()) || 
-                (b.barcode && b.barcode.includes(q)) ||
-                (b.author_name && b.author_name.toLowerCase().includes(q.toLowerCase()))
-            );
-            renderBooksGrid(filtered);
-        }
-
-        function renderBooksGrid(books) {
-            const grid = document.getElementById('books-grid');
-            if (books.length === 0) {
-                grid.innerHTML = `<div class="col-span-3 text-center py-8 text-slate-400">Kitob topilmadi.</div>`;
-                return;
-            }
-            grid.innerHTML = books.map(b => `
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between hover:shadow-md transition">
-                    <div>
-                        <div class="flex justify-between items-start gap-2">
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${b.stock_quantity > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
-                                ${b.stock_quantity > 0 ? b.stock_quantity + ' dona bor' : 'Tugagan'}
-                            </span>
-                            <span class="text-[11px] text-slate-400 font-mono">Polka: ${b.shelf_location || '-'}</span>
-                        </div>
-                        <h4 class="font-bold text-slate-900 mt-2 line-clamp-1">${b.title}</h4>
-                        <p class="text-xs text-slate-500">${b.author_name || 'Muallif ko\'rsatilmagan'} • ${b.category_name || ''}</p>
-                        
-                        <div class="my-3 flex items-center justify-between">
-                            <span class="text-base font-bold text-slate-900">${Number(b.price).toLocaleString()} so'm</span>
-                            <span class="text-xs font-mono text-indigo-600 font-semibold">${b.barcode}</span>
-                        </div>
-
-                        ${b.barcode_image ? `
-                            <div class="p-2 bg-slate-50 rounded-lg border border-slate-100 mb-3">
-                                <img src="${b.barcode_image}" class="h-8 mx-auto object-contain">
-                            </div>
-                        ` : ''}
-                    </div>
-
-                    <button onclick="quickScan('${b.barcode}'); switchTab('scanner-tab');" class="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition">
-                        <i data-lucide="scan" class="w-3.5 h-3.5"></i> Skaner orqali ko'rish
-                    </button>
-                </div>
-            `).join('');
-            lucide.createIcons();
-        }
-
-        // Dashboard Stats Loader
-        async function loadDashboardStats() {
+        // POS STATS
+        async function loadPosStats() {
             try {
                 const res = await fetch('/api/dashboard/stats/');
                 const data = await res.json();
 
-                const container = document.getElementById('stats-cards-container');
-                container.innerHTML = `
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-semibold text-slate-400">Jami Kitob Turlari</span>
-                            <i data-lucide="book" class="w-5 h-5 text-indigo-600"></i>
-                        </div>
-                        <div class="text-2xl font-bold text-slate-900 mt-2">${data.inventory.total_book_titles} ta</div>
-                        <div class="text-xs text-slate-500 mt-1">Jami ${data.inventory.total_physical_stock} dona fizik kitob</div>
+                const c = document.getElementById('pos-stats-cards');
+                c.innerHTML = `
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Jami Kitoblar</span>
+                        <div class="text-xl font-black text-slate-900 mt-1">${data.inventory.total_physical_stock} dona</div>
+                        <span class="text-[10px] text-slate-400">${data.inventory.total_book_titles} xil tur</span>
                     </div>
-
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-semibold text-slate-400">Ombor Qiymati</span>
-                            <i data-lucide="coins" class="w-5 h-5 text-emerald-600"></i>
-                        </div>
-                        <div class="text-2xl font-bold text-emerald-600 mt-2">${Number(data.inventory.total_inventory_value).toLocaleString()} so'm</div>
-                        <div class="text-xs text-slate-500 mt-1">Sotuv narxidagi jami qiymat</div>
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Ombor Qiymati</span>
+                        <div class="text-xl font-black text-emerald-600 mt-1">${Number(data.inventory.total_inventory_value).toLocaleString()} so'm</div>
+                        <span class="text-[10px] text-slate-400">Sotuv qiymatida</span>
                     </div>
-
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-semibold text-slate-400">Faol Qarzlar (Nasiya)</span>
-                            <i data-lucide="clock" class="w-5 h-5 text-rose-600"></i>
-                        </div>
-                        <div class="text-2xl font-bold text-rose-600 mt-2">${Number(data.debts.total_active_debt_amount).toLocaleString()} so'm</div>
-                        <div class="text-xs text-rose-500 font-semibold mt-1">Muddati o'tgan: ${Number(data.debts.overdue_debt_amount).toLocaleString()} so'm</div>
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Faol Qarzlar</span>
+                        <div class="text-xl font-black text-rose-600 mt-1">${Number(data.debts.total_active_debt_amount).toLocaleString()} so'm</div>
+                        <span class="text-[10px] text-rose-500 font-bold">${data.debts.active_debts_count} ta qarzda</span>
                     </div>
-
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-semibold text-slate-400">Bugungi Sotuv</span>
-                            <i data-lucide="trending-up" class="w-5 h-5 text-blue-600"></i>
-                        </div>
-                        <div class="text-2xl font-bold text-blue-600 mt-2">${Number(data.sales.today_revenue).toLocaleString()} so'm</div>
-                        <div class="text-xs text-slate-500 mt-1">${data.sales.today_sales_count} ta muvaffaqiyatli xarid</div>
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Bugungi Tushum</span>
+                        <div class="text-xl font-black text-indigo-600 mt-1">${Number(data.sales.today_revenue).toLocaleString()} so'm</div>
+                        <span class="text-[10px] text-slate-400">${data.sales.today_sales_count} ta xarid</span>
                     </div>
                 `;
 
-                // Top selling
-                const topCont = document.getElementById('top-selling-container');
+                // Top books
+                const tb = document.getElementById('pos-top-books');
                 if (data.top_selling_books && data.top_selling_books.length > 0) {
-                    topCont.innerHTML = data.top_selling_books.map((b, i) => `
-                        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
-                            <div class="flex items-center gap-3">
-                                <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-800 text-xs font-bold flex items-center justify-center">${i+1}</span>
-                                <div>
-                                    <div class="font-bold text-xs text-slate-800">${b.book__title}</div>
-                                    <div class="text-[10px] font-mono text-slate-400">${b.book__barcode}</div>
-                                </div>
-                            </div>
-                            <div class="text-right">
-                                <span class="font-bold text-xs text-indigo-600">${b.sold_count} dona</span>
-                                <div class="text-[10px] text-slate-500">${Number(b.total_sum).toLocaleString()} so'm</div>
-                            </div>
+                    tb.innerHTML = data.top_selling_books.map((b, i) => `
+                        <div class="flex justify-between items-center text-xs p-2 bg-white rounded-xl border border-slate-100">
+                            <span><strong>#${i+1}</strong> ${b.book__title}</span>
+                            <span class="font-bold text-indigo-600">${b.sold_count} dona</span>
                         </div>
                     `).join('');
                 } else {
-                    topCont.innerHTML = `<div class="text-xs text-slate-400">Hozircha sotuvlar mavjud emas.</div>`;
+                    tb.innerHTML = `<div class="text-xs text-slate-400">Sotuvlar yo'q</div>`;
                 }
 
                 // Low stock
                 const lowRes = await fetch('/api/books/low-stock/');
                 const lowData = await lowRes.json();
-                const lowCont = document.getElementById('low-stock-container');
+                const lb = document.getElementById('pos-low-books');
                 if (lowData.results && lowData.results.length > 0) {
-                    lowCont.innerHTML = lowData.results.map(b => `
-                        <div class="flex items-center justify-between p-3 bg-rose-50 border border-rose-100 rounded-xl">
-                            <div>
-                                <div class="font-bold text-xs text-rose-950">${b.title}</div>
-                                <div class="text-[10px] text-rose-700 font-mono">${b.barcode} • Polka: ${b.shelf_location || '-'}</div>
-                            </div>
-                            <span class="px-2 py-1 rounded text-xs font-bold bg-rose-200 text-rose-900">${b.stock_quantity} dona qoldi</span>
+                    lb.innerHTML = lowData.results.map(b => `
+                        <div class="flex justify-between items-center text-xs p-2 bg-rose-50 border border-rose-100 rounded-xl text-rose-900">
+                            <span>${b.title}</span>
+                            <span class="font-bold bg-rose-200 px-2 py-0.5 rounded">${b.stock_quantity} dona</span>
                         </div>
                     `).join('');
                 } else {
-                    lowCont.innerHTML = `<div class="text-xs text-emerald-600 font-semibold">Barcha kitoblar omborda yetarli miqdorda mavjud.</div>`;
+                    lb.innerHTML = `<div class="text-xs text-emerald-600 font-bold">Hammasi yetarli</div>`;
                 }
-
                 lucide.createIcons();
-            } catch (err) {
-                console.error(err);
-            }
+            } catch (err) {}
         }
-
-        // Auto trigger initial scan test
-        document.addEventListener('DOMContentLoaded', () => {
-            quickScan('9780132350884');
-        });
     </script>
 </body>
 </html>
