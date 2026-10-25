@@ -51,15 +51,15 @@ class Book(models.Model):
     isbn = models.CharField(max_length=32, blank=True, null=True, db_index=True, verbose_name="ISBN")
     barcode = models.CharField(max_length=64, unique=True, db_index=True, blank=True, verbose_name="Shtrix kod")
     
-    price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Sotish narxi (so'm)")
-    cost_price = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Tan narxi (so'm)")
+    price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Sotish narxi, so'm")
+    cost_price = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Tan narxi, so'm")
     stock_quantity = models.PositiveIntegerField(default=0, verbose_name="Ombordagi qoldiq soni")
     
     publisher = models.CharField(max_length=200, blank=True, null=True, verbose_name="Nashriyot")
     published_year = models.PositiveIntegerField(blank=True, null=True, verbose_name="Chop etilgan yili")
     pages = models.PositiveIntegerField(blank=True, null=True, verbose_name="Sahifalar soni")
     language = models.CharField(max_length=50, default="O'zbekcha", verbose_name="Tili")
-    shelf_location = models.CharField(max_length=100, blank=True, null=True, verbose_name="Polka / Joylashuv (masalan: A-12)")
+    shelf_location = models.CharField(max_length=100, blank=True, null=True, verbose_name="Polka / Joylashuv")
     description = models.TextField(blank=True, null=True, verbose_name="Kitob tavsifi")
     
     cover_image = models.ImageField(upload_to="covers/", blank=True, null=True, verbose_name="Muqova rasmi")
@@ -76,7 +76,7 @@ class Book(models.Model):
         ordering = ['-id']
 
     def __str__(self):
-        return f"{self.title} ({self.barcode})"
+        return f"{self.title} — {self.barcode}"
 
     @property
     def is_in_stock(self):
@@ -183,7 +183,7 @@ class Customer(models.Model):
         ordering = ['-id']
 
     def __str__(self):
-        return f"{self.full_name} ({self.phone})"
+        return f"{self.full_name} — {self.phone}"
 
     @property
     def full_name(self):

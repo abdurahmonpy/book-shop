@@ -122,7 +122,7 @@ def run_seed():
             "description": "Mayda o'zgarishlar qanday qilib hayratlanarli natijalar beradi."
         },
         {
-            "title": "Refactoring (Kodni yaxshilash)",
+            "title": "Refactoring",
             "author": auth_fowler,
             "category": cat_it,
             "isbn": "978-013-475-759-9",

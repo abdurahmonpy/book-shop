@@ -292,10 +292,17 @@
                                 </div>
                             </form>
 
-                            <div class="pt-2">
+                            <div class="flex items-center justify-between flex-wrap gap-2 pt-2 text-left">
+                                <label class="inline-flex items-center gap-2 cursor-pointer select-none text-xs text-indigo-900 font-bold bg-white px-3.5 py-1.5 rounded-xl border border-indigo-200 shadow-sm hover:bg-indigo-50 transition">
+                                    <input type="checkbox" id="pos-auto-add" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer">
+                                    <span class="flex items-center gap-1.5">
+                                        <i data-lucide="sparkles" class="w-3.5 h-3.5 text-indigo-600"></i>
+                                        Internetdan topilganda avtomatik do'konga qo'shish
+                                    </span>
+                                </label>
                                 <a href="/scanner/" class="inline-flex items-center gap-1.5 text-xs text-indigo-600 font-bold hover:underline">
                                     <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
-                                    <span>Kengaytirilgan alohida skanerlash sahifasini ochish</span>
+                                    <span>Kengaytirilgan alohida skaner sahifasini ochish</span>
                                 </a>
                             </div>
 
@@ -636,6 +643,8 @@
             const code = document.getElementById('pos-scan-input').value.trim();
             if (!code) return;
 
+            const autoAdd = document.getElementById('pos-auto-add')?.checked ? 1 : 0;
+
             const resCont = document.getElementById('pos-scan-result');
             resCont.classList.remove('hidden');
             resCont.innerHTML = `
@@ -646,7 +655,7 @@
             `;
 
             try {
-                const res = await fetch(`/api/scan/?code=${encodeURIComponent(code)}`);
+                const res = await fetch(`/api/scan/?code=${encodeURIComponent(code)}&auto_add=${autoAdd}`);
                 let data = null;
                 const contentType = res.headers.get("content-type");
 
@@ -690,6 +699,16 @@
 
         function renderPosScannedCard(data) {
             const cont = document.getElementById('pos-scan-result');
+
+            if (data.auto_added) {
+                Swal.fire({
+                    icon: 'success',
+                    title: "Omborga qo'shildi!",
+                    text: data.message || "Yangi kitob internetdan topildi va omborga avtomatik qo'shildi!",
+                    timer: 2200,
+                    showConfirmButton: false
+                });
+            }
 
             // 1. Agar xalqaro ISBN bazasidan topilgan yangi kitob bo'lsa
             if (data.source === 'GLOBAL_ISBN_DATABASE') {
@@ -751,6 +770,19 @@
             const b = data.book;
             const stock = data.stock_status;
 
+            let autoAddedBanner = '';
+            if (data.auto_added) {
+                autoAddedBanner = `
+                    <div class="mb-3 p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-xs font-bold text-emerald-800 flex items-center justify-between gap-2 shadow-sm">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="sparkles" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+                            <span>Kitob internetdan topildi va omborga avtomatik tarzda qo'shildi!</span>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-lg bg-emerald-200 text-emerald-900 text-[10px] uppercase font-black">Avtomat</span>
+                    </div>
+                `;
+            }
+
             let borrowersHtml = '';
             if (b.active_borrowers && b.active_borrowers.length > 0) {
                 borrowersHtml = `
@@ -761,7 +793,7 @@
                         <div class="space-y-1">
                             ${b.active_borrowers.map(borrower => `
                                 <div class="text-[11px] text-slate-700 flex justify-between bg-white px-2 py-1 rounded">
-                                    <span>${borrower.customer_name} (${borrower.customer_phone})</span>
+                                    <span>${borrower.customer_name} — ${borrower.customer_phone}</span>
                                     <span class="font-bold text-rose-600">${borrower.borrow_type}</span>
                                 </div>
                             `).join('')}
@@ -771,6 +803,7 @@
             }
 
             cont.innerHTML = `
+                ${autoAddedBanner}
                 <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-5">
                     <div class="w-28 h-36 bg-slate-100 rounded-xl overflow-hidden shrink-0 mx-auto md:mx-0">
                         ${b.cover_image ? `<img src="${b.cover_image}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-slate-400"><i data-lucide="book" class="w-8 h-8"></i></div>`}
