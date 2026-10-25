@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kitob Do'koni Boshqaruv Tizimi (Bookstore System)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- HTML5 QR Code Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <header class="bg-indigo-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
+            <div class="flex items-center space-x-3">
+                <div class="bg-indigo-600 p-2 rounded-xl">
+                    <i data-lucide="book-open" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight">Kitob Do'koni POS & API</h1>
+                    <p class="text-xs text-indigo-200">Shtrix-kod, QR-kod, Kitob olish & Qarz daftari</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <a href="/api/docs/" target="_blank" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                    <i data-lucide="file-code" class="w-4 h-4"></i>
+                    <span>Swagger API Docs</span>
+                </a>
+                <a href="/admin/" target="_blank" class="px-3 py-1.5 bg-indigo-800 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                    <i data-lucide="shield" class="w-4 h-4"></i>
+                    <span>Admin Panel</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Navigation Tabs -->
+    <div class="bg-white border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <nav class="flex space-x-8" aria-label="Tabs">
+                <button onclick="switchTab('scanner-tab')" id="tab-btn-scanner" class="border-indigo-600 text-indigo-600 border-b-2 py-4 px-1 text-sm font-semibold flex items-center gap-2">
+                    <i data-lucide="scan-barcode" class="w-4 h-4"></i>
+                    <span>Skaner & Tezkor Savdo</span>
+                </button>
+                <button onclick="switchTab('debts-tab')" id="tab-btn-debts" class="border-transparent text-slate-500 hover:text-slate-700 border-b-2 py-4 px-1 text-sm font-semibold flex items-center gap-2">
+                    <i data-lucide="credit-card" class="w-4 h-4"></i>
+                    <span>Qarzlar Daftari (Nasiya)</span>
+                </button>
+                <button onclick="switchTab('inventory-tab')" id="tab-btn-inventory" class="border-transparent text-slate-500 hover:text-slate-700 border-b-2 py-4 px-1 text-sm font-semibold flex items-center gap-2">
+                    <i data-lucide="library" class="w-4 h-4"></i>
+                    <span>Kitoblar Ombori</span>
+                </button>
+                <button onclick="switchTab('dashboard-tab')" id="tab-btn-dashboard" class="border-transparent text-slate-500 hover:text-slate-700 border-b-2 py-4 px-1 text-sm font-semibold flex items-center gap-2">
+                    <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                    <span>Statistika & Tahlil</span>
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
+
+        <!-- ================= TAB 1: SCANNER & FAST SALE ================= -->
+        <section id="scanner-tab" class="space-y-6">
+            <!-- Search & Scan Bar -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div class="max-w-3xl mx-auto text-center space-y-4">
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Barcode & QR Code Scanner API
+                    </span>
+                    <h2 class="text-2xl font-bold text-slate-900">Shtrix-kod yoki QR-kodni skaner qiling</h2>
+                    <p class="text-sm text-slate-500">
+                        Skaner to'pponchasi orqali o'qing, kameradan foydalaning yoki shtrix-kod raqamini qo'lda kiriting.
+                    </p>
+
+                    <form onsubmit="handleScanSubmit(event)" class="relative flex items-center mt-4">
+                        <div class="relative w-full">
+                            <input type="text" id="scan-input" autofocus
+                                placeholder="Shtrix-kod (masalan 9789943001111) yoki QR-kod JSON..."
+                                class="w-full pl-12 pr-32 py-4 text-base border-2 border-indigo-200 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 transition shadow-inner font-mono">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <i data-lucide="scan" class="w-6 h-6 text-indigo-500"></i>
+                            </div>
+                        </div>
+                        <div class="absolute right-2 flex items-center gap-2">
+                            <button type="button" onclick="toggleCameraScanner()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition">
+                                <i data-lucide="camera" class="w-4 h-4 text-indigo-600"></i>
+                                <span>Kamera</span>
+                            </button>
+                            <button type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl flex items-center gap-1.5 shadow transition">
+                                <span>Qidirish</span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Camera Container (Hidden by default) -->
+                    <div id="camera-scanner-wrapper" class="hidden mt-4 p-4 border-2 border-dashed border-indigo-300 rounded-2xl bg-indigo-50/50">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-bold text-indigo-900 flex items-center gap-1">
+                                <i data-lucide="video" class="w-4 h-4"></i> Jonli Kamera Skaneri
+                            </span>
+                            <button onclick="stopCameraScanner()" class="text-xs text-rose-600 hover:underline font-semibold">Yopish</button>
+                        </div>
+                        <div id="camera-reader" class="mx-auto max-w-sm overflow-hidden rounded-xl bg-black"></div>
+                    </div>
+
+                    <!-- Quick sample barcodes to test -->
+                    <div class="pt-2 text-left">
+                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sinash uchun namunaviy shtrix-kodlar:</p>
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="quickScan('9789943001111')" class="px-2.5 py-1 text-xs bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg border border-slate-200 font-mono transition">
+                                9789943001111 (O'tkan kunlar)
+                            </button>
+                            <button onclick="quickScan('9780132350884')" class="px-2.5 py-1 text-xs bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg border border-slate-200 font-mono transition">
+                                9780132350884 (Clean Code)
+                            </button>
+                            <button onclick="quickScan('9789943554444')" class="px-2.5 py-1 text-xs bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg border border-slate-200 font-mono transition">
+                                9789943554444 (Atom odatlar)
+                            </button>
+                            <button onclick="quickScan('9780134757599')" class="px-2.5 py-1 text-xs bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg border border-slate-200 font-mono transition">
+                                9780134757599 (Refactoring - 3 dona)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scanned Result Container -->
+            <div id="scan-result-card" class="hidden">
+                <!-- Injected dynamically via JS -->
+            </div>
+        </section>
+
+
+        <!-- ================= TAB 2: DEBTS (QARZ DAFTARI) ================= -->
+        <section id="debts-tab" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                        <i data-lucide="book-marked" class="w-5 h-5 text-indigo-600"></i>
+                        Qarzlar va Nasiyalar Daftari
+                    </h2>
+                    <p class="text-xs text-slate-500">Mijozlarning to'lanmagan qarzlari, muddatlari va to'lovlar monitoringi</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="loadDebts('all')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition">Barchasi</button>
+                    <button onclick="loadDebts('overdue')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 transition">Muddati o'tganlar</button>
+                    <button onclick="loadDebts('PENDING')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 transition">To'lanmaganlar</button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-600">
+                        <thead class="bg-slate-50 text-slate-500 uppercase text-xs border-b border-slate-200 font-semibold">
+                            <tr>
+                                <th class="px-6 py-4">Qarz raqami</th>
+                                <th class="px-6 py-4">Mijoz</th>
+                                <th class="px-6 py-4">Kitob(lar)</th>
+                                <th class="px-6 py-4">Jami qarz</th>
+                                <th class="px-6 py-4">To'langan</th>
+                                <th class="px-6 py-4">Qolgan qarz</th>
+                                <th class="px-6 py-4">Muddat</th>
+                                <th class="px-6 py-4">Holat</th>
+                                <th class="px-6 py-4 text-center">Amal</th>
+                            </tr>
+                        </thead>
+                        <tbody id="debts-table-body" class="divide-y divide-slate-100">
+                            <tr><td colspan="9" class="px-6 py-8 text-center text-slate-400">Yuklanmoqda...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ================= TAB 3: INVENTORY ================= -->
+        <section id="inventory-tab" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                        <i data-lucide="layers" class="w-5 h-5 text-indigo-600"></i>
+                        Ombordagi Kitoblar Ro'yxati
+                    </h2>
+                    <p class="text-xs text-slate-500">Kitoblar qoldig'i, shtrix-kod va QR-kodlari</p>
+                </div>
+                <div class="w-full md:w-72">
+                    <input type="text" id="inventory-search" oninput="filterInventory(this.value)" placeholder="Qidirish (nomi, shtrix-kod)..."
+                        class="w-full px-4 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600">
+                </div>
+            </div>
+
+            <div id="books-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Dynamically loaded books -->
+            </div>
+        </section>
+
+
+        <!-- ================= TAB 4: DASHBOARD ================= -->
+        <section id="dashboard-tab" class="hidden space-y-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" id="stats-cards-container">
+                <!-- Stats loaded dynamically -->
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <i data-lucide="flame" class="w-4 h-4 text-amber-500"></i>
+                        Eng ko'p sotilgan kitoblar
+                    </h3>
+                    <div id="top-selling-container" class="space-y-3">
+                        <!-- Top books -->
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-500"></i>
+                        Omborda kam qolgan kitoblar
+                    </h3>
+                    <div id="low-stock-container" class="space-y-3">
+                        <!-- Low stock alerts -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal: Fast Sale (Kitob sotish / olish) -->
+    <div id="sale-modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+                <h3 class="font-bold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="shopping-cart" class="w-5 h-5 text-indigo-600"></i>
+                    Kitob Sotish (Kitob olish)
+                </h3>
+                <button onclick="closeSaleModal()" class="text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form onsubmit="submitSale(event)" class="space-y-4">
+                <input type="hidden" id="sale-book-id">
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <div id="sale-book-title" class="font-semibold text-sm text-slate-900">Kitob nomi</div>
+                        <div id="sale-book-price-label" class="text-xs text-slate-500">Narxi: 0 so'm</div>
+                    </div>
+                    <div id="sale-book-stock-badge" class="px-2 py-1 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">10 dona bor</div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Necha dona?</label>
+                    <input type="number" id="sale-quantity" value="1" min="1" oninput="calculateSaleTotal()" required
+                        class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-200">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Mijoz (Ixtiyoriy)</label>
+                    <select id="sale-customer-id" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-200">
+                        <option value="">-- Anonim xaridor --</option>
+                        {% for c in customers %}
+                        <option value="{{ c.id }}">{{ c.full_name }} ({{ c.phone }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">To'lov turi</label>
+                    <select id="sale-payment-method" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-200">
+                        <option value="CASH">Naqd pul</option>
+                        <option value="CARD">Bank kartasi (Uzcard / Humo / Click / Payme)</option>
+                        <option value="DEBT">Nasiya / Qarzga yozish</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Chegirma (so'm)</label>
+                    <input type="number" id="sale-discount" value="0" min="0" oninput="calculateSaleTotal()"
+                        class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-200">
+                </div>
+
+                <div class="bg-indigo-50 p-4 rounded-xl flex justify-between items-center">
+                    <span class="text-xs font-semibold text-indigo-900">Jami to'lanadigan summa:</span>
+                    <span id="sale-final-total" class="text-lg font-bold text-indigo-700">0 so'm</span>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closeSaleModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl transition">Bekor qilish</button>
+                    <button type="submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow transition">Tasdiqlash</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Fast Debt (Qarzga olish) -->
+    <div id="debt-modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+                <h3 class="font-bold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="book-up" class="w-5 h-5 text-amber-600"></i>
+                    Kitobni Qarzga Berish (Nasiya / Ijara)
+                </h3>
+                <button onclick="closeDebtModal()" class="text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form onsubmit="submitDebt(event)" class="space-y-4">
+                <input type="hidden" id="debt-book-id">
+                <div class="bg-amber-50 p-3 rounded-xl border border-amber-200">
+                    <div id="debt-book-title" class="font-semibold text-sm text-amber-950">Kitob nomi</div>
+                    <div id="debt-book-price-label" class="text-xs text-amber-800">Narxi: 0 so'm</div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Mijozni tanlang *</label>
+                    <select id="debt-customer-id" required class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-amber-200">
+                        {% for c in customers %}
+                        <option value="{{ c.id }}">{{ c.full_name }} ({{ c.phone }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Qarz turi</label>
+                    <select id="debt-borrow-type" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-amber-200">
+                        <option value="PURCHASE_DEBT">Nasiyaga sotib olish (kitob mijozda qoladi, pulini to'laydi)</option>
+                        <option value="RENT_BORROW">Ijaraga / O'qishga olish (kitobni o'qib qaytaradi)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Qaytarish / To'lash muddati *</label>
+                    <input type="date" id="debt-due-date" required
+                        class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-amber-200">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Dastlabki to'lov (agar bergan bo'lsa)</label>
+                    <input type="number" id="debt-initial-payment" value="0" min="0"
+                        class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-amber-200">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Izoh / Kelishuv</label>
+                    <textarea id="debt-notes" rows="2" placeholder="Masalan: haftasiga 20 mingdan to'laydi..."
+                        class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-amber-200"></textarea>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closeDebtModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl transition">Bekor qilish</button>
+                    <button type="submit" class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-xl shadow transition">Qarzga berish</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Pay Debt (Qarz to'lash) -->
+    <div id="pay-debt-modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 animate-in fade-in">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+                <h3 class="font-bold text-slate-900">Qarz To'lovini Qabul Qilish</h3>
+                <button onclick="closePayModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form onsubmit="submitDebtPayment(event)" class="space-y-4">
+                <input type="hidden" id="pay-debt-id">
+                <div class="bg-slate-50 p-3 rounded-xl">
+                    <div id="pay-customer-name" class="font-bold text-sm text-slate-900">Mijoz</div>
+                    <div id="pay-remaining-amount" class="text-xs text-rose-600 font-semibold mt-1">Qolgan qarz: 0 so'm</div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">To'lov summasi (so'm) *</label>
+                    <input type="number" id="pay-amount" required min="1" step="any"
+                        class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-200">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">To'lov turi</label>
+                    <select id="pay-method" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm">
+                        <option value="CASH">Naqd pul</option>
+                        <option value="CARD">Bank kartasi (Uzcard / Humo / Click)</option>
+                    </select>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closePayModal()" class="flex-1 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl">Bekor qilish</button>
+                    <button type="submit" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl">To'lovni kiritish</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Init Lucide icons
+        lucide.createIcons();
+
+        let currentScannedBook = null;
+        let html5QrCode = null;
+
+        // Switch Tabs
+        function switchTab(tabId) {
+            ['scanner-tab', 'debts-tab', 'inventory-tab', 'dashboard-tab'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+                document.getElementById('tab-btn-' + id.replace('-tab', '')).classList.remove('border-indigo-600', 'text-indigo-600');
+                document.getElementById('tab-btn-' + id.replace('-tab', '')).classList.add('border-transparent', 'text-slate-500');
+            });
+            document.getElementById(tabId).classList.remove('hidden');
+            const activeBtn = document.getElementById('tab-btn-' + tabId.replace('-tab', ''));
+            activeBtn.classList.add('border-indigo-600', 'text-indigo-600');
+            activeBtn.classList.remove('border-transparent', 'text-slate-500');
+
+            if (tabId === 'debts-tab') loadDebts('all');
+            if (tabId === 'inventory-tab') loadInventory();
+            if (tabId === 'dashboard-tab') loadDashboardStats();
+            lucide.createIcons();
+        }
+
+        // Quick Scan helper
+        function quickScan(code) {
+            document.getElementById('scan-input').value = code;
+            handleScanSubmit(new Event('submit'));
+        }
+
+        // Submit Scan
+        async function handleScanSubmit(e) {
+            if (e) e.preventDefault();
+            const code = document.getElementById('scan-input').value.trim();
+            if (!code) return;
+
+            const resultContainer = document.getElementById('scan-result-card');
+            resultContainer.classList.remove('hidden');
+            resultContainer.innerHTML = `
+                <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center">
+                    <div class="animate-spin inline-block w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full mb-3"></div>
+                    <p class="text-sm font-semibold text-slate-600">Shtrix-kod tekshirilmoqda (${code})...</p>
+                </div>
+            `;
+
+            try {
+                const res = await fetch(`/api/scan/?code=${encodeURIComponent(code)}`);
+                const data = await res.json();
+
+                if (!res.ok || !data.found) {
+                    resultContainer.innerHTML = `
+                        <div class="bg-rose-50 border border-rose-200 p-6 rounded-2xl text-center space-y-2">
+                            <i data-lucide="alert-circle" class="w-10 h-10 text-rose-500 mx-auto"></i>
+                            <h3 class="text-base font-bold text-rose-800">Kitob topilmadi</h3>
+                            <p class="text-xs text-rose-600">${data.message || 'Bunday shtrix-kod yoki QR-kod bazada mavjud emas.'}</p>
+                        </div>
+                    `;
+                    lucide.createIcons();
+                    return;
+                }
+
+                currentScannedBook = data.book;
+                renderScannedBookCard(data);
+            } catch (err) {
+                resultContainer.innerHTML = `<div class="bg-rose-50 text-rose-700 p-4 rounded-xl text-xs">Tarmoq xatosi: ${err.message}</div>`;
+            }
+        }
+
+        // Render Book Card
+        function renderScannedBookCard(data) {
+            const b = data.book;
+            const stock = data.stock_status;
+            const container = document.getElementById('scan-result-card');
+
+            let stockBadgeClass = stock.badge === 'AVAILABLE' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                                  stock.badge === 'LOW_STOCK' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-rose-100 text-rose-800 border-rose-200';
+
+            let borrowersHtml = '';
+            if (b.active_borrowers && b.active_borrowers.length > 0) {
+                borrowersHtml = `
+                    <div class="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-200">
+                        <h4 class="text-xs font-bold text-amber-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <i data-lucide="user-x" class="w-4 h-4 text-amber-700"></i> Hozirda qarzga olgan mijozlar (${b.active_borrowers.length} kishi):
+                        </h4>
+                        <div class="space-y-2">
+                            ${b.active_borrowers.map(borrower => `
+                                <div class="flex justify-between items-center text-xs bg-white p-2.5 rounded-lg border border-amber-100">
+                                    <div>
+                                        <span class="font-bold text-slate-800">${borrower.customer_name}</span>
+                                        <span class="text-slate-400">(${borrower.customer_phone})</span>
+                                        <div class="text-[11px] text-slate-500">${borrower.borrow_type} • ${borrower.quantity} dona</div>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${borrower.is_overdue ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-700'}">
+                                            ${borrower.is_overdue ? 'Muddati o\'tgan!' : 'Faol'}
+                                        </span>
+                                        <div class="text-[10px] text-slate-400 mt-0.5">Muddati: ${new Date(borrower.due_date).toLocaleDateString()}</div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = `
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-12 gap-6">
+                    <!-- Left: Book Cover & QR -->
+                    <div class="md:col-span-4 flex flex-col items-center text-center space-y-4 border-b md:border-b-0 md:border-r border-slate-100 pb-6 md:pb-0 md:pr-6">
+                        <div class="w-36 h-48 bg-slate-100 rounded-xl flex items-center justify-center overflow-hidden shadow-md border border-slate-200">
+                            ${b.cover_image ? `<img src="${b.cover_image}" class="w-full h-full object-cover">` : `<i data-lucide="book" class="w-16 h-16 text-slate-300"></i>`}
+                        </div>
+                        <div class="w-full space-y-2">
+                            ${b.barcode_image ? `
+                                <div class="p-2 bg-slate-50 rounded-lg border border-slate-200">
+                                    <img src="${b.barcode_image}" class="h-10 mx-auto object-contain">
+                                    <span class="text-[11px] font-mono text-slate-500 block mt-1">${b.barcode}</span>
+                                </div>
+                            ` : ''}
+                            ${b.qr_code_image ? `
+                                <div class="p-2 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-center gap-2">
+                                    <img src="${b.qr_code_image}" class="w-12 h-12">
+                                    <div class="text-left text-[10px] text-slate-500">
+                                        <span class="font-bold text-slate-700 block">QR-kod</span>
+                                        <span>Mobil skaner uchun</span>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+
+                    <!-- Right: Info & Actions -->
+                    <div class="md:col-span-8 flex flex-col justify-between space-y-4">
+                        <div>
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${stockBadgeClass} border">
+                                    ${stock.message}
+                                </span>
+                                <span class="text-xs text-slate-400 font-mono">ID: #${b.id} | Polka: <strong class="text-slate-700">${b.shelf_location || 'Belgilanmagan'}</strong></span>
+                            </div>
+
+                            <h3 class="text-2xl font-bold text-slate-900 mt-2">${b.title}</h3>
+                            <p class="text-sm text-slate-500 font-medium">Muallif: <span class="text-indigo-600 font-semibold">${b.author ? b.author.name : 'Noma\'lum'}</span> | Kategoriya: <span class="text-slate-700">${b.category ? b.category.name : '-'}</span></p>
+
+                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 my-4">
+                                <div class="p-3 bg-slate-50 rounded-xl">
+                                    <span class="text-[11px] text-slate-400 block font-medium">Sotish narxi</span>
+                                    <span class="text-lg font-bold text-slate-900">${Number(b.price).toLocaleString()} so'm</span>
+                                </div>
+                                <div class="p-3 bg-slate-50 rounded-xl">
+                                    <span class="text-[11px] text-slate-400 block font-medium">Ombordagi qoldiq</span>
+                                    <span class="text-lg font-bold ${b.stock_quantity > 0 ? 'text-emerald-600' : 'text-rose-600'}">${b.stock_quantity} dona</span>
+                                </div>
+                                <div class="p-3 bg-slate-50 rounded-xl">
+                                    <span class="text-[11px] text-slate-400 block font-medium">Jami sotilgan</span>
+                                    <span class="text-lg font-bold text-indigo-600">${data.analytics.total_sold_count} dona</span>
+                                </div>
+                            </div>
+
+                            ${b.description ? `<p class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">${b.description}</p>` : ''}
+
+                            ${borrowersHtml}
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex flex-wrap gap-3 pt-4 border-t border-slate-100">
+                            <button onclick="openSaleModal()" class="flex-1 min-w-[140px] py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-sm transition">
+                                <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+                                <span>Kitobni Sotish</span>
+                            </button>
+                            <button onclick="openDebtModal()" class="flex-1 min-w-[140px] py-3 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-sm transition">
+                                <i data-lucide="hand-coins" class="w-4 h-4"></i>
+                                <span>Qarzga / Nasiyaga Berish</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        // Camera Scanner via HTML5-QRCode
+        function toggleCameraScanner() {
+            const wrapper = document.getElementById('camera-scanner-wrapper');
+            if (wrapper.classList.contains('hidden')) {
+                wrapper.classList.remove('hidden');
+                html5QrCode = new Html5Qrcode("camera-reader");
+                html5QrCode.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 250, height: 180 } },
+                    (decodedText) => {
+                        stopCameraScanner();
+                        document.getElementById('scan-input').value = decodedText;
+                        handleScanSubmit(new Event('submit'));
+                    },
+                    (error) => {}
+                ).catch(err => {
+                    Swal.fire('Kamera xatosi', 'Kameraga ulanib bo\'lmadi: ' + err, 'error');
+                    wrapper.classList.add('hidden');
+                });
+            } else {
+                stopCameraScanner();
+            }
+        }
+
+        function stopCameraScanner() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode.clear();
+                    html5QrCode = null;
+                }).catch(err => {});
+            }
+            document.getElementById('camera-scanner-wrapper').classList.add('hidden');
+        }
+
+        // Sale Modal Logic
+        function openSaleModal() {
+            if (!currentScannedBook) return;
+            document.getElementById('sale-book-id').value = currentScannedBook.id;
+            document.getElementById('sale-book-title').innerText = currentScannedBook.title;
+            document.getElementById('sale-book-price-label').innerText = `Dona narxi: ${Number(currentScannedBook.price).toLocaleString()} so'm`;
+            document.getElementById('sale-book-stock-badge').innerText = `${currentScannedBook.stock_quantity} dona mavjud`;
+            document.getElementById('sale-quantity').value = 1;
+            document.getElementById('sale-quantity').max = currentScannedBook.stock_quantity;
+            document.getElementById('sale-discount').value = 0;
+            calculateSaleTotal();
+            document.getElementById('sale-modal').classList.remove('hidden');
+        }
+
+        function closeSaleModal() {
+            document.getElementById('sale-modal').classList.add('hidden');
+        }
+
+        function calculateSaleTotal() {
+            if (!currentScannedBook) return;
+            const qty = Number(document.getElementById('sale-quantity').value) || 1;
+            const discount = Number(document.getElementById('sale-discount').value) || 0;
+            const price = Number(currentScannedBook.price) || 0;
+            const total = Math.max(0, (qty * price) - discount);
+            document.getElementById('sale-final-total').innerText = `${total.toLocaleString()} so'm`;
+        }
+
+        async function submitSale(e) {
+            e.preventDefault();
+            const bookId = Number(document.getElementById('sale-book-id').value);
+            const qty = Number(document.getElementById('sale-quantity').value);
+            const customerId = document.getElementById('sale-customer-id').value || null;
+            const paymentMethod = document.getElementById('sale-payment-method').value;
+            const discount = Number(document.getElementById('sale-discount').value) || 0;
+
+            const payload = {
+                customer_id: customerId ? Number(customerId) : null,
+                payment_method: paymentMethod,
+                discount_amount: discount.toFixed(2),
+                items: [{ book_id: bookId, quantity: qty }]
+            };
+
+            try {
+                const res = await fetch('/api/sales/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    closeSaleModal();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Xarid muvaffaqiyatli amalga oshirildi!',
+                        text: `Chek raqami: ${data.sale_number} | To'lov: ${Number(data.final_amount).toLocaleString()} so'm`
+                    });
+                    // Refresh current book
+                    handleScanSubmit(null);
+                } else {
+                    const errMsg = data.items || data.detail || JSON.stringify(data);
+                    Swal.fire('Xatolik', String(errMsg), 'error');
+                }
+            } catch (err) {
+                Swal.fire('Tarmoq xatosi', err.message, 'error');
+            }
+        }
+
+        // Debt Modal Logic
+        function openDebtModal() {
+            if (!currentScannedBook) return;
+            document.getElementById('debt-book-id').value = currentScannedBook.id;
+            document.getElementById('debt-book-title').innerText = currentScannedBook.title;
+            document.getElementById('debt-book-price-label').innerText = `Narxi: ${Number(currentScannedBook.price).toLocaleString()} so'm`;
+            
+            // Default 30 days due date
+            const d = new Date();
+            d.setDate(d.getDate() + 30);
+            document.getElementById('debt-due-date').value = d.toISOString().split('T')[0];
+            document.getElementById('debt-initial-payment').value = 0;
+            document.getElementById('debt-notes').value = '';
+            document.getElementById('debt-modal').classList.remove('hidden');
+        }
+
+        function closeDebtModal() {
+            document.getElementById('debt-modal').classList.add('hidden');
+        }
+
+        async function submitDebt(e) {
+            e.preventDefault();
+            const bookId = Number(document.getElementById('debt-book-id').value);
+            const customerId = Number(document.getElementById('debt-customer-id').value);
+            const borrowType = document.getElementById('debt-borrow-type').value;
+            const dueDate = document.getElementById('debt-due-date').value + "T18:00:00Z";
+            const initialPayment = Number(document.getElementById('debt-initial-payment').value) || 0;
+            const notes = document.getElementById('debt-notes').value;
+
+            const payload = {
+                customer_id: customerId,
+                borrow_type: borrowType,
+                due_date: dueDate,
+                initial_payment: initialPayment.toFixed(2),
+                notes: notes,
+                items: [{ book_id: bookId, quantity: 1 }]
+            };
+
+            try {
+                const res = await fetch('/api/debts/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    closeDebtModal();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Kitob qarzga rasmiylashtirildi!',
+                        text: `Hujjat raqami: ${data.debt_number} | Qolgan qarz: ${Number(data.remaining_debt_amount).toLocaleString()} so'm`
+                    });
+                    handleScanSubmit(null);
+                } else {
+                    const err = data.items || data.detail || JSON.stringify(data);
+                    Swal.fire('Xatolik', String(err), 'error');
+                }
+            } catch (err) {
+                Swal.fire('Tarmoq xatosi', err.message, 'error');
+            }
+        }
+
+        // Debts Table Loader
+        async function loadDebts(filterType) {
+            const tbody = document.getElementById('debts-table-body');
+            tbody.innerHTML = `<tr><td colspan="9" class="px-6 py-8 text-center text-slate-400">Yuklanmoqda...</td></tr>`;
+
+            let url = '/api/debts/';
+            if (filterType === 'overdue') url = '/api/debts/overdue/';
+            else if (filterType === 'PENDING') url = '/api/debts/?status=PENDING';
+
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                const list = data.results || data;
+
+                if (!list || list.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="9" class="px-6 py-8 text-center text-slate-400">Qarzlar mavjud emas.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = list.map(d => {
+                    const statusBadge = d.status === 'PAID' ? 'bg-emerald-100 text-emerald-800' :
+                                       d.status === 'RETURNED' ? 'bg-blue-100 text-blue-800' :
+                                       d.is_overdue || d.status === 'OVERDUE' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800';
+
+                    const booksList = d.items ? d.items.map(i => `${i.book_title} (${i.quantity} dona)`).join(', ') : '-';
+
+                    return `
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="px-6 py-4 font-mono font-bold text-indigo-700">${d.debt_number}</td>
+                            <td class="px-6 py-4">
+                                <div class="font-bold text-slate-800">${d.customer.full_name}</div>
+                                <div class="text-xs text-slate-400">${d.customer.phone}</div>
+                            </td>
+                            <td class="px-6 py-4 text-xs text-slate-700 max-w-xs truncate">${booksList}</td>
+                            <td class="px-6 py-4 font-semibold">${Number(d.total_debt_amount).toLocaleString()} so'm</td>
+                            <td class="px-6 py-4 text-emerald-600 font-semibold">${Number(d.paid_amount).toLocaleString()} so'm</td>
+                            <td class="px-6 py-4 text-rose-600 font-bold">${Number(d.remaining_debt_amount).toLocaleString()} so'm</td>
+                            <td class="px-6 py-4 text-xs text-slate-500">${new Date(d.due_date).toLocaleDateString()}</td>
+                            <td class="px-6 py-4">
+                                <span class="px-2 py-1 rounded text-xs font-bold ${statusBadge}">
+                                    ${d.status_display}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                ${Number(d.remaining_debt_amount) > 0 ? `
+                                    <button onclick="openPayModal(${d.id}, '${d.customer.full_name}', ${d.remaining_debt_amount})" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm">
+                                        To'lash
+                                    </button>
+                                ` : (d.borrow_type === 'RENT_BORROW' && d.status !== 'RETURNED' ? `
+                                    <button onclick="returnRentBook(${d.id})" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm">
+                                        Qaytarish
+                                    </button>
+                                ` : `<span class="text-xs text-emerald-600 font-semibold">Yopilgan</span>`)}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="9" class="px-6 py-8 text-center text-rose-500">Xatolik: ${err.message}</td></tr>`;
+            }
+        }
+
+        // Pay Modal Logic
+        function openPayModal(debtId, customerName, remaining) {
+            document.getElementById('pay-debt-id').value = debtId;
+            document.getElementById('pay-customer-name').innerText = `Mijoz: ${customerName}`;
+            document.getElementById('pay-remaining-amount').innerText = `Qolgan qarz: ${Number(remaining).toLocaleString()} so'm`;
+            document.getElementById('pay-amount').value = remaining;
+            document.getElementById('pay-amount').max = remaining;
+            document.getElementById('pay-debt-modal').classList.remove('hidden');
+        }
+
+        function closePayModal() {
+            document.getElementById('pay-debt-modal').classList.add('hidden');
+        }
+
+        async function submitDebtPayment(e) {
+            e.preventDefault();
+            const debtId = document.getElementById('pay-debt-id').value;
+            const amount = Number(document.getElementById('pay-amount').value);
+            const method = document.getElementById('pay-method').value;
+
+            try {
+                const res = await fetch(`/api/debts/${debtId}/pay/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount: amount, payment_method: method })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    closePayModal();
+                    Swal.fire('To\'lov qabul qilindi!', data.message, 'success');
+                    loadDebts('all');
+                } else {
+                    Swal.fire('Xatolik', data.detail || JSON.stringify(data), 'error');
+                }
+            } catch (err) {
+                Swal.fire('Tarmoq xatosi', err.message, 'error');
+            }
+        }
+
+        async function returnRentBook(debtId) {
+            const confirmed = await Swal.fire({
+                title: 'Kitob qaytarildimi?',
+                text: 'Kitob ombordagi soniga qayta qo\'shiladi va qarz yopiladi.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Ha, qaytarildi',
+                cancelButtonText: 'Yo\'q'
+            });
+
+            if (confirmed.isConfirmed) {
+                const res = await fetch(`/api/debts/${debtId}/return-book/`, { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    Swal.fire('Bajarildi!', data.message, 'success');
+                    loadDebts('all');
+                } else {
+                    Swal.fire('Xatolik', data.detail || 'Xatolik yuz berdi', 'error');
+                }
+            }
+        }
+
+        // Inventory Loader
+        let allBooksList = [];
+        async function loadInventory() {
+            const grid = document.getElementById('books-grid');
+            grid.innerHTML = `<div class="col-span-3 text-center py-8 text-slate-400">Kitoblar yuklanmoqda...</div>`;
+            try {
+                const res = await fetch('/api/books/');
+                const data = await res.json();
+                allBooksList = data.results || data;
+                renderBooksGrid(allBooksList);
+            } catch (err) {
+                grid.innerHTML = `<div class="col-span-3 text-rose-500 text-center">Xatolik: ${err.message}</div>`;
+            }
+        }
+
+        function filterInventory(q) {
+            const filtered = allBooksList.filter(b => 
+                b.title.toLowerCase().includes(q.toLowerCase()) || 
+                (b.barcode && b.barcode.includes(q)) ||
+                (b.author_name && b.author_name.toLowerCase().includes(q.toLowerCase()))
+            );
+            renderBooksGrid(filtered);
+        }
+
+        function renderBooksGrid(books) {
+            const grid = document.getElementById('books-grid');
+            if (books.length === 0) {
+                grid.innerHTML = `<div class="col-span-3 text-center py-8 text-slate-400">Kitob topilmadi.</div>`;
+                return;
+            }
+            grid.innerHTML = books.map(b => `
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between hover:shadow-md transition">
+                    <div>
+                        <div class="flex justify-between items-start gap-2">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${b.stock_quantity > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                                ${b.stock_quantity > 0 ? b.stock_quantity + ' dona bor' : 'Tugagan'}
+                            </span>
+                            <span class="text-[11px] text-slate-400 font-mono">Polka: ${b.shelf_location || '-'}</span>
+                        </div>
+                        <h4 class="font-bold text-slate-900 mt-2 line-clamp-1">${b.title}</h4>
+                        <p class="text-xs text-slate-500">${b.author_name || 'Muallif ko\'rsatilmagan'} • ${b.category_name || ''}</p>
+                        
+                        <div class="my-3 flex items-center justify-between">
+                            <span class="text-base font-bold text-slate-900">${Number(b.price).toLocaleString()} so'm</span>
+                            <span class="text-xs font-mono text-indigo-600 font-semibold">${b.barcode}</span>
+                        </div>
+
+                        ${b.barcode_image ? `
+                            <div class="p-2 bg-slate-50 rounded-lg border border-slate-100 mb-3">
+                                <img src="${b.barcode_image}" class="h-8 mx-auto object-contain">
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <button onclick="quickScan('${b.barcode}'); switchTab('scanner-tab');" class="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition">
+                        <i data-lucide="scan" class="w-3.5 h-3.5"></i> Skaner orqali ko'rish
+                    </button>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        // Dashboard Stats Loader
+        async function loadDashboardStats() {
+            try {
+                const res = await fetch('/api/dashboard/stats/');
+                const data = await res.json();
+
+                const container = document.getElementById('stats-cards-container');
+                container.innerHTML = `
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-400">Jami Kitob Turlari</span>
+                            <i data-lucide="book" class="w-5 h-5 text-indigo-600"></i>
+                        </div>
+                        <div class="text-2xl font-bold text-slate-900 mt-2">${data.inventory.total_book_titles} ta</div>
+                        <div class="text-xs text-slate-500 mt-1">Jami ${data.inventory.total_physical_stock} dona fizik kitob</div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-400">Ombor Qiymati</span>
+                            <i data-lucide="coins" class="w-5 h-5 text-emerald-600"></i>
+                        </div>
+                        <div class="text-2xl font-bold text-emerald-600 mt-2">${Number(data.inventory.total_inventory_value).toLocaleString()} so'm</div>
+                        <div class="text-xs text-slate-500 mt-1">Sotuv narxidagi jami qiymat</div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-400">Faol Qarzlar (Nasiya)</span>
+                            <i data-lucide="clock" class="w-5 h-5 text-rose-600"></i>
+                        </div>
+                        <div class="text-2xl font-bold text-rose-600 mt-2">${Number(data.debts.total_active_debt_amount).toLocaleString()} so'm</div>
+                        <div class="text-xs text-rose-500 font-semibold mt-1">Muddati o'tgan: ${Number(data.debts.overdue_debt_amount).toLocaleString()} so'm</div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-400">Bugungi Sotuv</span>
+                            <i data-lucide="trending-up" class="w-5 h-5 text-blue-600"></i>
+                        </div>
+                        <div class="text-2xl font-bold text-blue-600 mt-2">${Number(data.sales.today_revenue).toLocaleString()} so'm</div>
+                        <div class="text-xs text-slate-500 mt-1">${data.sales.today_sales_count} ta muvaffaqiyatli xarid</div>
+                    </div>
+                `;
+
+                // Top selling
+                const topCont = document.getElementById('top-selling-container');
+                if (data.top_selling_books && data.top_selling_books.length > 0) {
+                    topCont.innerHTML = data.top_selling_books.map((b, i) => `
+                        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                            <div class="flex items-center gap-3">
+                                <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-800 text-xs font-bold flex items-center justify-center">${i+1}</span>
+                                <div>
+                                    <div class="font-bold text-xs text-slate-800">${b.book__title}</div>
+                                    <div class="text-[10px] font-mono text-slate-400">${b.book__barcode}</div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="font-bold text-xs text-indigo-600">${b.sold_count} dona</span>
+                                <div class="text-[10px] text-slate-500">${Number(b.total_sum).toLocaleString()} so'm</div>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    topCont.innerHTML = `<div class="text-xs text-slate-400">Hozircha sotuvlar mavjud emas.</div>`;
+                }
+
+                // Low stock
+                const lowRes = await fetch('/api/books/low-stock/');
+                const lowData = await lowRes.json();
+                const lowCont = document.getElementById('low-stock-container');
+                if (lowData.results && lowData.results.length > 0) {
+                    lowCont.innerHTML = lowData.results.map(b => `
+                        <div class="flex items-center justify-between p-3 bg-rose-50 border border-rose-100 rounded-xl">
+                            <div>
+                                <div class="font-bold text-xs text-rose-950">${b.title}</div>
+                                <div class="text-[10px] text-rose-700 font-mono">${b.barcode} • Polka: ${b.shelf_location || '-'}</div>
+                            </div>
+                            <span class="px-2 py-1 rounded text-xs font-bold bg-rose-200 text-rose-900">${b.stock_quantity} dona qoldi</span>
+                        </div>
+                    `).join('');
+                } else {
+                    lowCont.innerHTML = `<div class="text-xs text-emerald-600 font-semibold">Barcha kitoblar omborda yetarli miqdorda mavjud.</div>`;
+                }
+
+                lucide.createIcons();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Auto trigger initial scan test
+        document.addEventListener('DOMContentLoaded', () => {
+            quickScan('9780132350884');
+        });
+    </script>
+</body>
+</html>
